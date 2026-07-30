@@ -3,4 +3,3 @@ st-gsheets-connection
 pandas
 fpdf2
 openpyxl
-uharbuzz
