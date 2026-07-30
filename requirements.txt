@@ -3,3 +3,4 @@ st-gsheets-connection
 pandas
 fpdf2
 openpyxl
+streamlit-pdf-viewer
