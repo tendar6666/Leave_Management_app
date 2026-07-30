@@ -1,0 +1,4 @@
+streamlit
+streamlit-gsheets-connection
+pandas
+fpdf2
