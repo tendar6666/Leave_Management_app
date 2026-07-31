@@ -87,7 +87,7 @@ def inject_balance_formulas(df):
                     "Actual Service Year"] = f'=IF(C{r}="", 0, TO_PURE_NUMBER((TODAY() - (DATEVALUE(C{r}) + E{r}))/365.25))'
 
         df_copy.at[df_copy.index[i],
-                    "Addition_UL"] = f"=IF(AND(F{r}>=5, MOD(FLOOR(F{r}), 5)=0), 30, 0)"
+                    "Addition_UL"] = f"=IFS(AND(AB{r}=5, (W{r}+AA{r})<182.5), 182.5, AND(AB{r}=10, (W{r}+AA{r})<365), 182.5, AND(AB{r}=15, (W{r}+AA{r})<547.5), 182.5, AND(AB{r}>=20, (W{r}+AA{r})<730), 182.5, TRUE, 0)"
         df_copy.at[df_copy.index[i], "Last_UL_Milestone"] = f"=FLOOR(F{r}/5)*5"
 
         df_copy.at[df_copy.index[i],
