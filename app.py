@@ -587,6 +587,11 @@ def employee_dashboard(hide_title=False):
                         "Leave Support Requested 🤝",
                         f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type} and selected {selected_coadmin} as Co-Admin."
                     )
+                send_ntfy_notification(
+                    NTFY_ACCOUNT_TOPIC,
+                    "New Leave Request ℹ️",
+                    f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type}. (FYI - Pending Approval)"
+                )
                 st.rerun()
             except Exception as e:
                 st.error(f"Failed to submit request: {e}")
@@ -618,6 +623,16 @@ def employee_dashboard(hide_title=False):
                         conn.update(worksheet="LeaveRequests",
                                     data=df_requests)
                         st.cache_data.clear()
+                        send_ntfy_notification(
+                            NTFY_ADMIN_TOPIC,
+                            "Leave Supported 🤝",
+                            f"Co-Admin {st.session_state.user_name} supported {row['TotalDays']} day(s) of leave for {row['Name']}."
+                        )
+                        send_ntfy_notification(
+                            NTFY_ACCOUNT_TOPIC,
+                            "Leave Supported ℹ️",
+                            f"Co-Admin {st.session_state.user_name} supported {row['TotalDays']} day(s) of leave for {row['Name']}. (FYI - Awaiting Admin Approval)"
+                        )
                         st.rerun()
 
             if not others.empty:
@@ -1283,6 +1298,11 @@ def admin_dashboard():
                                 "Leave Approved - Action Required 📝",
                                 f"Admin approved {row['TotalDays']} day(s) of {row['LeaveType']} for {row['Name']}. Please punch it in the register!"
                             )
+                            send_ntfy_notification(
+                                NTFY_COADMIN_TOPIC,
+                                "Leave Approved ✅",
+                                f"Admin approved {row['TotalDays']} day(s) of leave for {row['Name']}."
+                            )
                             st.rerun()
                         if col2.button("Reject", key=f"reject_{row['ID']}"):
                             df_requests.at[idx, "Status"] = "Rejected"
@@ -1367,6 +1387,16 @@ def coadmin_dashboard():
                         conn.update(worksheet="LeaveRequests",
                                     data=df_requests)
                         st.cache_data.clear()
+                        send_ntfy_notification(
+                            NTFY_ADMIN_TOPIC,
+                            "Leave Supported 🤝",
+                            f"Co-Admin {st.session_state.user_name} supported {row['TotalDays']} day(s) of leave for {row['Name']}."
+                        )
+                        send_ntfy_notification(
+                            NTFY_ACCOUNT_TOPIC,
+                            "Leave Supported ℹ️",
+                            f"Co-Admin {st.session_state.user_name} supported {row['TotalDays']} day(s) of leave for {row['Name']}. (FYI - Awaiting Admin Approval)"
+                        )
                         st.rerun()
     else:
         st.info("No leave requests found.")
@@ -1437,6 +1467,16 @@ def accounts_dashboard():
                             df_requests.at[idx, "PunchedBy"] = st.session_state.user_name
                             conn.update(worksheet="LeaveRequests", data=df_requests)
                             st.cache_data.clear()
+                            send_ntfy_notification(
+                                NTFY_ADMIN_TOPIC,
+                                "Leave Punched in Register 📚",
+                                f"Accountant {st.session_state.user_name} punched in {row['TotalDays']} day(s) of leave for {row['Name']}."
+                            )
+                            send_ntfy_notification(
+                                NTFY_COADMIN_TOPIC,
+                                "Leave Punched in Register 📚",
+                                f"Accountant {st.session_state.user_name} punched in {row['TotalDays']} day(s) of leave for {row['Name']}."
+                            )
                             st.rerun()
                             
         leave_accounting_engine()
