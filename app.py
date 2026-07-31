@@ -576,6 +576,17 @@ def employee_dashboard(hide_title=False):
                 conn.update(worksheet="LeaveRequests", data=updated_df)
                 st.cache_data.clear()
                 st.success("Request submitted successfully!")
+                send_ntfy_notification(
+                    NTFY_ADMIN_TOPIC, 
+                    "New Leave Request 🚨", 
+                    f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type}. Pending approval!"
+                )
+                if selected_coadmin and selected_coadmin != "None":
+                    send_ntfy_notification(
+                        NTFY_COADMIN_TOPIC,
+                        "Leave Support Requested 🤝",
+                        f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type} and selected {selected_coadmin} as Co-Admin."
+                    )
                 st.rerun()
             except Exception as e:
                 st.error(f"Failed to submit request: {e}")
