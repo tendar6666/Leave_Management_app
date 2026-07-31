@@ -12,13 +12,17 @@ NTFY_ACCOUNT_TOPIC = st.secrets.get("ntfy", {}).get("account_topic")
 def send_ntfy_notification(topic, title, message):
     try:
         if topic:
-            requests.post(
+            res = requests.post(
                 f"https://ntfy.sh/{topic}",
                 data=message.encode('utf-8'),
                 headers={"Title": title.encode('utf-8')}
             )
+            st.toast(f"Notification sent to {topic}! Status: {res.status_code}")
+        else:
+            st.error("NTFY topic is missing in st.secrets!")
     except Exception as e:
-        print(f"NTFY Error: {e}")
+        st.error(f"NTFY Error: {e}")
+
 
 import io
 from fpdf import FPDF
@@ -590,10 +594,15 @@ def employee_dashboard(hide_title=False):
             if not pending.empty:
                 st.markdown("**⏳ Pending Requests (Can be deleted)**")
                 for idx, row in pending.iterrows():
-                    col1, col2 = st.columns([5, 1])
+                    col1, col2, col3 = st.columns([4, 1, 1])
                     col1.write(
                         f"**{row['LeaveType']}** for {row['TotalDays']} days ({row['StartDate']} to {row['EndDate']})")
-                    if col2.button("🗑️ Delete", key=f"del_{row['ID']}"):
+                    
+                    pdf_bytes = generate_leave_pdf(row)
+                    if col2.button("📄 Preview", key=f"prev_emp_pend_{row['ID']}"):
+                        open_pdf_dialog(pdf_bytes, f"{row['Name']}_Leave.pdf")
+                        
+                    if col3.button("🗑️ Delete", key=f"del_{row['ID']}"):
                         df_requests = df_requests.drop(idx)
                         conn.update(worksheet="LeaveRequests",
                                     data=df_requests)
@@ -1450,6 +1459,11 @@ def render_smart_notifications(role, user_name):
 
 
 def main_dashboard():
+
+    if st.button("🧪 Test Notifications Setup", use_container_width=True):
+        send_ntfy_notification(NTFY_ADMIN_TOPIC, "Test Admin 🚨", "This is a test notification for the Admin.")
+        send_ntfy_notification(NTFY_COADMIN_TOPIC, "Test CoAdmin 🤝", "This is a test notification for the CoAdmin.")
+        send_ntfy_notification(NTFY_ACCOUNT_TOPIC, "Test Account 📝", "This is a test notification for the Accountant.")
     # AUTO-SYNC USERS -> STAFF MASTER
     users_df = load_users_data()
     staff_df = load_staff_master()
