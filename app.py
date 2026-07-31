@@ -1460,10 +1460,6 @@ def render_smart_notifications(role, user_name):
 
 def main_dashboard():
 
-    if st.button("🧪 Test Notifications Setup", use_container_width=True):
-        send_ntfy_notification(NTFY_ADMIN_TOPIC, "Test Admin 🚨", "This is a test notification for the Admin.")
-        send_ntfy_notification(NTFY_COADMIN_TOPIC, "Test CoAdmin 🤝", "This is a test notification for the CoAdmin.")
-        send_ntfy_notification(NTFY_ACCOUNT_TOPIC, "Test Account 📝", "This is a test notification for the Accountant.")
     # AUTO-SYNC USERS -> STAFF MASTER
     users_df = load_users_data()
     staff_df = load_staff_master()
