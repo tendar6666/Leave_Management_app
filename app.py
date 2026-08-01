@@ -1196,9 +1196,9 @@ def render_user_management(is_admin):
 
             if is_admin:
                 available_roles = ["Employee",
-                                    "Co-Admin", "Accountant", "Admin"]
+                                    "Co-Admin", "Accounts", "Admin"]
             else:
-                available_roles = ["Employee", "Accountant"]
+                available_roles = ["Employee", "Accounts"]
 
             if current_role not in available_roles and not is_admin:
                 st.warning(
@@ -1548,9 +1548,11 @@ def main_dashboard():
         confirm_pin = st.text_input(
             "Confirm New PIN", type="password", max_chars=4)
         if st.button("Update PIN"):
-            if len(new_pin) != 4 or not new_pin.isdigit():
-                st.error("PIN must be exactly 4 digits.")
-            elif new_pin != confirm_pin:
+            clean_new_pin = new_pin.strip()
+            clean_confirm_pin = confirm_pin.strip()
+            if len(clean_new_pin) != 4 or not clean_new_pin.isdigit():
+                st.error("PIN must be exactly 4 numeric digits.")
+            elif clean_new_pin != clean_confirm_pin:
                 st.error("PINs do not match!")
             else:
                 users_df = load_users_data()
@@ -1558,7 +1560,7 @@ def main_dashboard():
                     user_idx = users_df[users_df["Name"] ==
                                         st.session_state.user_name].index
                     if not user_idx.empty:
-                        users_df.at[user_idx[0], "PIN"] = new_pin
+                        users_df.at[user_idx[0], "PIN"] = clean_new_pin
                         conn.update(worksheet="Users", data=users_df)
                         st.cache_data.clear()
                         st.success("PIN updated successfully!")
