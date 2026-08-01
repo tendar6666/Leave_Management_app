@@ -43,7 +43,7 @@ if "user_role" not in st.session_state:
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 
-@st.cache_data(ttl=15)
+@st.cache_data(ttl=60)
 def load_users_data():
     try:
         df = conn.read(worksheet="Users", usecols=[
@@ -56,7 +56,7 @@ def load_users_data():
         return None
 
 
-@st.cache_data(ttl=15)
+@st.cache_data(ttl=60)
 def load_staff_master():
     return conn.read(worksheet="Staff_Master", usecols=list(range(30)))
 
@@ -105,7 +105,7 @@ def inject_balance_formulas(df):
     return df_copy
 
 
-@st.cache_data(ttl=15)
+@st.cache_data(ttl=60)
 def load_leave_requests():
     try:
         df = conn.read(worksheet="LeaveRequests")
