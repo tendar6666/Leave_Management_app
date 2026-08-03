@@ -6,6 +6,12 @@ import uuid
 import requests
 import extra_streamlit_components as stx
 
+import extra_streamlit_components as stx
+@st.cache_resource
+def get_manager():
+    return stx.CookieManager()
+cookie_manager = get_manager()
+
 NTFY_ADMIN_TOPIC = st.secrets.get("ntfy", {}).get("admin_topic")
 NTFY_COADMIN_TOPIC = st.secrets.get("ntfy", {}).get("coadmin_topic")
 NTFY_ACCOUNT_TOPIC = st.secrets.get("ntfy", {}).get("account_topic")
@@ -393,6 +399,7 @@ def login_screen():
             selected_name = st.selectbox("Select your Name", options=names)
             entered_pin = st.text_input(
                 "Enter 4-digit PIN", type="password", max_chars=4)
+            remember_me = st.checkbox("Keep me logged in")
             submit_button = st.form_submit_button("Login")
 
             if submit_button:
@@ -404,6 +411,9 @@ def login_screen():
                     st.session_state.logged_in = True
                     st.session_state.user_name = selected_name
                     st.session_state.user_role = user_record["Role"]
+                    if remember_me:
+                        cookie_manager.set("saved_username", selected_name, max_age=30*24*60*60)
+                        cookie_manager.set("saved_pin", str(entered_pin), max_age=30*24*60*60)
                     st.success("Login successful!")
                     st.rerun()
                 else:
@@ -1608,7 +1618,6 @@ def main_dashboard():
     st.sidebar.divider()
 
     if st.sidebar.button("Logout"):
-        cookie_manager = stx.CookieManager()
         cookie_manager.delete("saved_username")
         cookie_manager.delete("saved_pin")
         
@@ -1636,7 +1645,6 @@ def main_dashboard():
 
 
 # --- MAIN APP FLOW ---
-cookie_manager = stx.CookieManager()
 
 if not st.session_state.logged_in:
     # Attempt auto-login via cookie
