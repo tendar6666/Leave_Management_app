@@ -1615,8 +1615,13 @@ def main_dashboard():
     st.sidebar.divider()
 
     if st.sidebar.button("Logout"):
-        cookie_manager.delete("saved_username")
-        cookie_manager.delete("saved_pin")
+        try:
+            if cookie_manager.get("saved_username"):
+                cookie_manager.delete("saved_username")
+            if cookie_manager.get("saved_pin"):
+                cookie_manager.delete("saved_pin")
+        except KeyError:
+            pass
         
         st.session_state.logged_in = False
         st.session_state.user_name = None
