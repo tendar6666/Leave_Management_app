@@ -385,13 +385,14 @@ def preview_pdf(pdf_bytes):
     import streamlit as st
     st.markdown('''
         <style>
-            /* Enable horizontal scrolling for the PDF viewer on mobile */
+            /* Force the PDF iframe to be wide enough to trigger parent scrolling */
             div[data-testid="stVerticalBlock"], 
             div[data-testid="stDialog"] div[data-testid="stVerticalBlock"] {
                 overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
             }
             iframe[title*="streamlit_pdf_viewer"] {
-                overflow-x: auto !important;
+                min-width: 720px !important;
             }
         </style>
     ''', unsafe_allow_html=True)
