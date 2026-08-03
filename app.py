@@ -260,8 +260,11 @@ def generate_leave_pdf(row):
         pdf.cell(0, 10, to_tibetan_numeral(date_str),
                 new_x="LMARGIN", new_y="NEXT")
 
-        pdf.cell(
-            0, 10, f"གུང་གསེང་ཉིན་གྲངས་ཇི་ཞུས། {to_tibetan_numeral(row.get('TotalDays', ''))}", new_x="LMARGIN", new_y="NEXT")
+        pdf.write(10, "གུང་གསེང་ཉིན་གྲངས་ཇི་ཞུས། ")
+        pdf.set_font("Monlam", "U", 12)
+        pdf.write(10, f"{to_tibetan_numeral(row.get('TotalDays', ''))}")
+        pdf.set_font("Monlam", "", 12)
+        pdf.ln(10)
 
         l_type = str(row.get('LeaveType', '')).upper()
 
@@ -321,13 +324,19 @@ def generate_leave_pdf(row):
         pdf.cell(
             95, 10, f"ང། དམིགས་བསལ་ཕོགས་མེད། {to_tibetan_numeral(ul_bal)}", new_x="LMARGIN", new_y="NEXT")
 
+        reason_val = str(row.get('Reason', ''))
+        if reason_val.lower() == 'nan':
+            reason_val = ''
         pdf.cell(
-            0, 10, f"ཅ། གཞན། {to_tibetan_numeral(row.get('Reason', ''))}", new_x="LMARGIN", new_y="NEXT")
+            0, 10, f"ཅ། གཞན། {to_tibetan_numeral(reason_val)}", new_x="LMARGIN", new_y="NEXT")
 
         app_date = str(row.get('ApplicationDate', ''))
         if app_date and app_date != "nan":
-            pdf.cell(
-                0, 10, f"༧། སྙན་ཞུ་ཕུལ་བའི་ཚེས། {to_tibetan_numeral(format_tibetan_date(app_date))}", new_x="LMARGIN", new_y="NEXT")
+            pdf.write(10, "༧། སྙན་ཞུ་ཕུལ་བའི་ཚེས། ")
+            pdf.set_font("Monlam", "U", 12)
+            pdf.write(10, f"{to_tibetan_numeral(format_tibetan_date(app_date))}")
+            pdf.set_font("Monlam", "", 12)
+            pdf.ln(10)
 
         pdf.ln(10)
 
