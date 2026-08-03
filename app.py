@@ -4,6 +4,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import uuid
 import requests
+import extra_streamlit_components as stx
 
 NTFY_ADMIN_TOPIC = st.secrets.get("ntfy", {}).get("admin_topic")
 NTFY_COADMIN_TOPIC = st.secrets.get("ntfy", {}).get("coadmin_topic")
@@ -576,10 +577,15 @@ def employee_dashboard(hide_title=False):
                 conn.update(worksheet="LeaveRequests", data=updated_df)
                 st.cache_data.clear()
                 st.success("Request submitted successfully!")
+                if selected_coadmin and selected_coadmin != "None":
+                    admin_msg = f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type}. (Co-Admin: {selected_coadmin}). Pending approval!"
+                else:
+                    admin_msg = f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type}. Pending approval!"
+
                 send_ntfy_notification(
                     NTFY_ADMIN_TOPIC, 
                     "New Leave Request 🚨", 
-                    f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type}. Pending approval!"
+                    admin_msg
                 )
                 if selected_coadmin and selected_coadmin != "None":
                     send_ntfy_notification(
@@ -1220,8 +1226,35 @@ def render_user_management(is_admin):
                 st.rerun()
 
 
+
+def render_active_leaves_banner():
+    import datetime
+    df = load_leave_requests()
+    if df is None or df.empty: return
+    
+    today_str = datetime.date.today().strftime("%Y-%m-%d")
+    
+    active_leaves = []
+    for idx, row in df.iterrows():
+        if row.get("Status") == "Approved":
+            start = str(row.get("StartDate", ""))
+            end = str(row.get("EndDate", ""))
+            if start <= today_str <= end:
+                start_half = str(row.get("StartHalf", "Full Day")).strip()
+                end_half = str(row.get("EndHalf", "Full Day")).strip()
+                if start_half == end_half:
+                    half_str = f"({start_half})"
+                else:
+                    half_str = f"({start_half} Start, {end_half} End)"
+                
+                active_leaves.append(f"🌴 **{row['Name']}** is currently on **{row['LeaveType']}** from {start} to {end} ({row['TotalDays']} days total) {half_str}")
+    
+    if active_leaves:
+        st.info("### 📅 Today's Active Leaves\n" + "\n".join([f"- {l}" for l in active_leaves]))
+
 def admin_dashboard():
     render_financial_year_settings()
+    render_active_leaves_banner()
     st.title("Admin Dashboard")
     
     tab1, tab2, tab3 = st.tabs(["Admin Tasks", "My Leave Profile", "User Management"])
@@ -1400,6 +1433,9 @@ def coadmin_dashboard():
                         st.rerun()
     else:
         st.info("No leave requests found.")
+        
+    st.divider()
+    render_master_balance_table()
 
 
 def accounts_dashboard():
@@ -1541,6 +1577,10 @@ def main_dashboard():
 
     st.sidebar.title(f"Welcome, {st.session_state.user_name}")
     st.sidebar.write(f"**Role:** {st.session_state.user_role}")
+    
+    if st.sidebar.button("🔄 Refresh Data", type="primary"):
+        st.cache_data.clear()
+        st.rerun()
 
     with st.sidebar.expander("🔑 Change PIN"):
         new_pin = st.text_input(
@@ -1568,6 +1608,10 @@ def main_dashboard():
     st.sidebar.divider()
 
     if st.sidebar.button("Logout"):
+        cookie_manager = stx.CookieManager()
+        cookie_manager.delete("saved_username")
+        cookie_manager.delete("saved_pin")
+        
         st.session_state.logged_in = False
         st.session_state.user_name = None
         st.session_state.user_role = None
@@ -1592,6 +1636,24 @@ def main_dashboard():
 
 
 # --- MAIN APP FLOW ---
+cookie_manager = stx.CookieManager()
+
+if not st.session_state.logged_in:
+    # Attempt auto-login via cookie
+    saved_user = cookie_manager.get("saved_username")
+    saved_pin = cookie_manager.get("saved_pin")
+    if saved_user and saved_pin:
+        users_df = load_users_data()
+        if users_df is not None and not users_df.empty:
+            user_row = users_df[users_df["Name"] == saved_user]
+            if not user_row.empty:
+                stored_pin = str(user_row.iloc[0]["PIN"]).split('.')[0].zfill(4)
+                if str(saved_pin) == stored_pin:
+                    st.session_state.logged_in = True
+                    st.session_state.user_name = saved_user
+                    st.session_state.user_role = str(user_row.iloc[0]["Role"]).strip()
+                    st.rerun()
+
 if not st.session_state.logged_in:
     login_screen()
 else:
