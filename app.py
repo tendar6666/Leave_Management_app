@@ -205,13 +205,35 @@ def generate_leave_pdf(row):
                 if joining_date == "nan" or joining_date == "NaT":
                     joining_date = ""
 
-        pdf.cell(95, 10, f"༡། མཚན། {row.get('Name', '')}")
-        pdf.cell(
-            95, 10, f"༢། ལས་བྱེད་དུ་བསྐོ་གཞག་ཞུས་ཚེས། {to_tibetan_numeral(format_tibetan_date(joining_date))}", new_x="LMARGIN", new_y="NEXT")
+        x = pdf.get_x()
+        y = pdf.get_y()
+        
+        pdf.write(10, "༡། མཚན། ")
+        pdf.set_font("Monlam", "U", 12)
+        pdf.write(10, f"{row.get('Name', '')}")
+        pdf.set_font("Monlam", "", 12)
+        
+        pdf.set_xy(x + 95, y)
+        pdf.write(10, "༢། ལས་བྱེད་དུ་བསྐོ་གཞག་ཞུས་ཚེས། ")
+        pdf.set_font("Monlam", "U", 12)
+        pdf.write(10, f"{to_tibetan_numeral(format_tibetan_date(joining_date))}")
+        pdf.set_font("Monlam", "", 12)
+        pdf.ln(10)
 
-        pdf.cell(95, 10, f"༣། གནས་རིམ།/གོ་གནས། {to_tibetan_numeral(post)}")
-        pdf.cell(
-            95, 10, f"༤། ལས་ཁུངས་དང་སྡེ་ཚན། {row.get('Department', '')}", new_x="LMARGIN", new_y="NEXT")
+        x = pdf.get_x()
+        y = pdf.get_y()
+        
+        pdf.write(10, "༣། གནས་རིམ།/གོ་གནས། ")
+        pdf.set_font("Monlam", "U", 12)
+        pdf.write(10, f"{to_tibetan_numeral(post)}")
+        pdf.set_font("Monlam", "", 12)
+        
+        pdf.set_xy(x + 95, y)
+        pdf.write(10, "༤། ལས་ཁུངས་དང་སྡེ་ཚན། ")
+        pdf.set_font("Monlam", "U", 12)
+        pdf.write(10, f"{row.get('Department', '')}")
+        pdf.set_font("Monlam", "", 12)
+        pdf.ln(10)
 
         pdf.ln(2)
         start = str(row.get('StartDate', ''))
@@ -281,15 +303,23 @@ def generate_leave_pdf(row):
         pdf.cell(0, 10, "༦། གུང་གསེང་ལྷག་བསྡད་གནས་སྟངས་གཤམ་གསལ།",
                 new_x="LMARGIN", new_y="NEXT")
 
-        bal = calculate_balances(row.get('Name', ''))
+        cl_bal = row.get("CLBalance", "N/A")
+        al_bal = row.get("ALBalance", "N/A")
+        sl_bal = row.get("SLBalance", "N/A")
+        ul_bal = row.get("ULBalance", "N/A")
 
-        pdf.cell(95, 10, f"ཀ། ངེས་མེད། {to_tibetan_numeral(bal['CL'])}")
-        pdf.cell(
-            95, 10, f"ཁ། ཐོབ་སེང་། {to_tibetan_numeral(bal['AL'])}", new_x="LMARGIN", new_y="NEXT")
+        if pd.isna(cl_bal): cl_bal = "N/A"
+        if pd.isna(al_bal): al_bal = "N/A"
+        if pd.isna(sl_bal): sl_bal = "N/A"
+        if pd.isna(ul_bal): ul_bal = "N/A"
 
-        pdf.cell(95, 10, f"ག། ནད་དགོངས། {to_tibetan_numeral(bal['SL'])}")
+        pdf.cell(95, 10, f"ཀ། ངེས་མེད། {to_tibetan_numeral(cl_bal)}")
         pdf.cell(
-            95, 10, f"ང། དམིགས་བསལ་ཕོགས་མེད། {to_tibetan_numeral(bal['UL'])}", new_x="LMARGIN", new_y="NEXT")
+            95, 10, f"ཁ། ཐོབ་སེང་། {to_tibetan_numeral(al_bal)}", new_x="LMARGIN", new_y="NEXT")
+
+        pdf.cell(95, 10, f"ག། ནད་དགོངས། {to_tibetan_numeral(sl_bal)}")
+        pdf.cell(
+            95, 10, f"ང། དམིགས་བསལ་ཕོགས་མེད། {to_tibetan_numeral(ul_bal)}", new_x="LMARGIN", new_y="NEXT")
 
         pdf.cell(
             0, 10, f"ཅ། གཞན། {to_tibetan_numeral(row.get('Reason', ''))}", new_x="LMARGIN", new_y="NEXT")
@@ -339,6 +369,10 @@ def generate_leave_pdf(row):
         pdf.multi_cell(
             75, 6, "བཀའ་འཁྲོལ་ཆོག་མཆན།\nའགན་འཛིན།/དྲུང་ཆེ།", align="C")
 
+        pdf.ln(15)
+        pdf.set_font("Monlam", "", 10)
+        pdf.cell(0, 10, "༼འདི་ནི་གྲངས་འཛིན་མཚན་རྟགས་བཀོད་པའི་ཡིག་ཆ་ཞིག་ཡིན་པས། དངོས་སུ་མཚན་རྟགས་རྒྱག་དགོས་མེད།༽", align="C")
+
         return bytes(pdf.output())
     except Exception as e:
         import streamlit as st
@@ -348,6 +382,19 @@ def generate_leave_pdf(row):
 
 def preview_pdf(pdf_bytes):
     from streamlit_pdf_viewer import pdf_viewer
+    import streamlit as st
+    st.markdown('''
+        <style>
+            /* Enable horizontal scrolling for the PDF viewer on mobile */
+            div[data-testid="stVerticalBlock"], 
+            div[data-testid="stDialog"] div[data-testid="stVerticalBlock"] {
+                overflow-x: auto !important;
+            }
+            iframe[title*="streamlit_pdf_viewer"] {
+                overflow-x: auto !important;
+            }
+        </style>
+    ''', unsafe_allow_html=True)
     pdf_viewer(input=pdf_bytes, width=700)
 
 
@@ -551,7 +598,11 @@ def employee_dashboard(hide_title=False):
         "SelectedCoAdmin": selected_coadmin,
         "SupportedBy": "",
         "ApprovedBy": "",
-        "PunchedBy": ""
+        "PunchedBy": "",
+        "CLBalance": balances.get("CL", "N/A"),
+        "ALBalance": balances.get("AL", "N/A"),
+        "SLBalance": balances.get("SL", "N/A"),
+        "ULBalance": balances.get("UL", "N/A")
     }
 
     preview_pdf_bytes = generate_leave_pdf(preview_row)
@@ -588,7 +639,11 @@ def employee_dashboard(hide_title=False):
                     "SupportedBy": "",
                     "AccountsPunched": "No",
                     "PunchedBy": "",
-                    "ApprovedBy": ""
+                    "ApprovedBy": "",
+                    "CLBalance": balances.get("CL", "N/A"),
+                    "ALBalance": balances.get("AL", "N/A"),
+                    "SLBalance": balances.get("SL", "N/A"),
+                    "ULBalance": balances.get("UL", "N/A")
                 }])
                 updated_df = pd.concat(
                     [df_requests, new_request], ignore_index=True)
