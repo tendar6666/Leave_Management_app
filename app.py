@@ -93,7 +93,7 @@ def inject_balance_formulas(df):
         df_copy.at[df_copy.index[i],
                     "Penalty_CL(UL Effect)"] = f"=ROUND(((Y{r}+AC{r})/30)*0.75*2)/2"
         df_copy.at[df_copy.index[i],
-                    "Penalty_SL(UL Effect)"] = f"=ROUND(((Y{r}+AC{r})/30)*1.25*2)/2"
+                    "Penalty_SL(UL Effect)"] = f"=ROUND(((Y{r}+AC{r})/30)*2.5*2)/2"
         df_copy.at[df_copy.index[i],
                     "Penalty_AL(UL Effect)"] = f"=ROUND(((Y{r}+AC{r})/30)*2.5*2)/2"
 
@@ -674,7 +674,7 @@ def leave_accounting_engine():
                 return 0.0
 
         st.subheader("Process Financial Year Rollover")
-        st.warning("⚠️ **Warning: FY Rollover will carry forward AL/UL balances, set Opening CL/SL to 0, add standard allowances (AL 30, SL 15, CL 9), and factor in UL delays/penalties.**")
+        st.warning("⚠️ **Warning: FY Rollover will carry forward AL/UL balances, set Opening CL/SL to 0, add standard allowances (AL 30, SL 30, CL 9), and factor in UL delays/penalties.**")
 
         archive_name = st.text_input(
             "Name of ending Financial Year (e.g. FY2025-2026) for Archive", "FY2025-2026")
@@ -692,7 +692,7 @@ def leave_accounting_engine():
                         staff_df.at[idx, "Opening_SL"] = 0.0
 
                         staff_df.at[idx, "Addition_AL"] = 30.0
-                        staff_df.at[idx, "Addition_SL"] = 15.0
+                        staff_df.at[idx, "Addition_SL"] = 30.0
                         staff_df.at[idx, "Addition_CL"] = 9.0
 
                         staff_df.at[idx, "Used_AL"] = 0.0
@@ -892,7 +892,7 @@ def leave_accounting_engine():
 
                         import math
                         pro_al = math.ceil((30 * prop) * 2) / 2.0
-                        pro_sl = math.ceil((15 * prop) * 2) / 2.0
+                        pro_sl = math.ceil((30 * prop) * 2) / 2.0
                         pro_cl = math.ceil((9 * prop) * 2) / 2.0
 
                         new_staff_row = pd.DataFrame([{
