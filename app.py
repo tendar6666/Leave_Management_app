@@ -409,8 +409,7 @@ def login_screen():
                     st.session_state.user_name = selected_name
                     st.session_state.user_role = user_record["Role"]
                     if remember_me:
-                        cookie_manager.set("saved_username", selected_name, max_age=30*24*60*60)
-                        cookie_manager.set("saved_pin", str(entered_pin), max_age=30*24*60*60)
+                        cookie_manager.set("auth_token", f"{selected_name}|{entered_pin}", max_age=30*24*60*60)
                     st.success("Login successful!")
                     st.rerun()
                 else:
@@ -1616,10 +1615,8 @@ def main_dashboard():
 
     if st.sidebar.button("Logout"):
         try:
-            if cookie_manager.get("saved_username"):
-                cookie_manager.delete("saved_username")
-            if cookie_manager.get("saved_pin"):
-                cookie_manager.delete("saved_pin")
+            if cookie_manager.get("auth_token"):
+                cookie_manager.delete("auth_token")
         except KeyError:
             pass
         
@@ -1650,9 +1647,9 @@ def main_dashboard():
 
 if not st.session_state.logged_in:
     # Attempt auto-login via cookie
-    saved_user = cookie_manager.get("saved_username")
-    saved_pin = cookie_manager.get("saved_pin")
-    if saved_user and saved_pin:
+    auth_token = cookie_manager.get("auth_token")
+    if auth_token and '|' in str(auth_token):
+        saved_user, saved_pin = str(auth_token).split('|', 1)
         users_df = load_users_data()
         if users_df is not None and not users_df.empty:
             user_row = users_df[users_df["Name"] == saved_user]
