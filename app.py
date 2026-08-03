@@ -7,10 +7,7 @@ import requests
 import extra_streamlit_components as stx
 
 import extra_streamlit_components as stx
-@st.cache_resource
-def get_manager():
-    return stx.CookieManager()
-cookie_manager = get_manager()
+cookie_manager = stx.CookieManager(key="main_cookie_manager")
 
 NTFY_ADMIN_TOPIC = st.secrets.get("ntfy", {}).get("admin_topic")
 NTFY_COADMIN_TOPIC = st.secrets.get("ntfy", {}).get("coadmin_topic")
