@@ -1379,7 +1379,11 @@ def admin_dashboard():
                         if "Other" in str(row['LeaveType']) or row.get("EffectsServiceYear") == "Yes":
                             st.warning(f"🚨 **ATTENTION:** This is an '{row['LeaveType']}' leave. The employee has checked 'EffectsServiceYear = {row.get('EffectsServiceYear')}'. Please double-check if this type of leave (e.g. Education Leave) should delay their service year before approving!")
                         co_status = "✅ Supported" if str(row.get('CoAdminAcknowledged', '')).strip().lower() == "supported" else "⏳ Pending"
-                        st.caption(f"**Co-Admin Status:** {co_status}")
+                        co_admin_name = str(row.get('SelectedCoAdmin', '')).strip()
+                        if co_admin_name and co_admin_name.lower() not in ['none', 'nan', '']:
+                            st.caption(f"**Co-Admin ({co_admin_name}):** {co_status}")
+                        else:
+                            st.caption(f"**Co-Admin:** {co_status}")
                         pdf_bytes = generate_leave_pdf(row)
                         if st.button("📄 Preview PDF", key=f"preview_pending_admin_{row['ID']}"):
                             open_pdf_dialog(pdf_bytes, f"{row['Name']}_{row['StartDate']}_Leave_Preview.pdf")
@@ -1585,7 +1589,11 @@ def accounts_dashboard():
                         co_status = "✅ Supported" if str(row.get('CoAdminAcknowledged', '')).strip().lower() == "supported" else "⏳ Pending"
                         admin_status = "✅ Approved" if str(row.get('Status', '')).strip().lower() == "approved" else f"ℹ️ {row.get('Status', 'Unknown')}"
                         
-                        st.caption(f"**Admin:** {admin_status} &nbsp;|&nbsp; **Co-Admin:** {co_status}")
+                        co_admin_name = str(row.get('SelectedCoAdmin', '')).strip()
+                        if co_admin_name and co_admin_name.lower() not in ['none', 'nan', '']:
+                            st.caption(f"**Admin:** {admin_status} &nbsp;|&nbsp; **Co-Admin ({co_admin_name}):** {co_status}")
+                        else:
+                            st.caption(f"**Admin:** {admin_status} &nbsp;|&nbsp; **Co-Admin:** {co_status}")
                         
                         pdf_bytes = generate_leave_pdf(row)
                         col_btn1, col_btn2 = st.columns(2)
