@@ -10,7 +10,8 @@ import extra_streamlit_components as stx
 cookie_manager = stx.CookieManager(key="main_cookie_manager")
 
 if "pending_cookie" in st.session_state:
-    cookie_manager.set("auth_token", st.session_state.pending_cookie, max_age=30*24*60*60)
+    expire_date = datetime.now() + timedelta(days=30)
+    cookie_manager.set("auth_token", st.session_state.pending_cookie, expires_at=expire_date)
     del st.session_state.pending_cookie
 
 if st.session_state.get("pending_cookie_delete"):
@@ -131,7 +132,7 @@ def load_leave_requests():
                 df[col] = df[col].astype(object)
         return df
     except Exception as e:
-        return pd.DataFrame(columns=['ID', 'Name', 'LeaveType', 'StartDate', 'EndDate', 'TotalDays', 'Department', 'SelectedCoAdmin', 'Status', 'CoAdminAcknowledged', 'SupportedBy', 'AccountsPunched', 'PunchedBy', 'ApprovedBy'])
+        return pd.DataFrame(columns=['ID', 'Name', 'LeaveType', 'StartDate', 'EndDate', 'TotalDays', 'Department', 'SelectedCoAdmin', 'Status', 'CoAdminAcknowledged', 'SupportedBy', 'AccountsPunched', 'PunchedBy', 'ApprovedBy', 'CLBalance', 'ALBalance', 'SLBalance', 'ULBalance'])
 
 # --- HELPER FUNCS ---
 
@@ -171,6 +172,7 @@ def format_tibetan_date(date_str):
     return date_str
 
 
+@st.cache_data(show_spinner=False, max_entries=100)
 def generate_leave_pdf(row):
     try:
         pdf = FPDF()
@@ -1558,11 +1560,30 @@ def accounts_dashboard():
         st.subheader("All Leaves Overview")
         if not df_requests.empty:
             for idx, row in df_requests.iterrows():
-                col1, col2 = st.columns([5, 1])
-                col1.write(f"**{row['Name']}** - {row['LeaveType']} ({row['StartDate']} to {row['EndDate']}) - Status: {row['Status']}")
-                if row['Status'] == "Approved":
+                col1, col2, col3 = st.columns([4, 1, 1])
+                
+                raw_status = str(row.get('Status', '')).strip()
+                co_admin_name = str(row.get('SelectedCoAdmin', '')).strip()
+                co_status_raw = str(row.get('CoAdminAcknowledged', '')).strip().lower()
+                
+                if raw_status == "Pending":
+                    if co_admin_name and co_admin_name.lower() not in ['none', 'nan', '']:
+                        if co_status_raw == "supported":
+                            display_status = f"Supported by Co-Admin ({co_admin_name}) and Pending from Admin"
+                        else:
+                            display_status = f"Pending from Co-Admin ({co_admin_name}) and Admin"
+                    else:
+                        display_status = "Pending from Admin"
+                else:
+                    display_status = raw_status
+
+                col1.write(f"**{row['Name']}** - {row['LeaveType']} ({row['StartDate']} to {row['EndDate']}) - Status: {display_status}")
+                
+                if raw_status == "Approved":
                     pdf_bytes = generate_leave_pdf(row)
-                    col2.download_button("📄 PDF", data=pdf_bytes, file_name=f"{row['Name']}_{row['StartDate']}_Leave.pdf", mime="application/pdf", key=f"dl_acc_{row['ID']}")
+                    if col2.button("👁️ Preview", key=f"prev_acc_all_{row['ID']}"):
+                        open_pdf_dialog(pdf_bytes, f"{row['Name']}_{row['StartDate']}_Leave.pdf")
+                    col3.download_button("📄 PDF", data=pdf_bytes, file_name=f"{row['Name']}_{row['StartDate']}_Leave.pdf", mime="application/pdf", key=f"dl_acc_{row['ID']}")
         else:
             st.info("No data available.")
             
