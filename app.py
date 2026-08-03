@@ -209,30 +209,38 @@ def generate_leave_pdf(row):
         y = pdf.get_y()
         
         pdf.write(10, "༡། མཚན། ")
-        pdf.set_font("Monlam", "U", 12)
+        start_x = pdf.get_x()
+        start_y = pdf.get_y()
         pdf.write(10, f"{row.get('Name', '')}")
-        pdf.set_font("Monlam", "", 12)
+        if pdf.get_x() > start_x:
+            pdf.line(start_x, start_y + 8, pdf.get_x(), start_y + 8)
         
         pdf.set_xy(x + 95, y)
         pdf.write(10, "༢། ལས་བྱེད་དུ་བསྐོ་གཞག་ཞུས་ཚེས། ")
-        pdf.set_font("Monlam", "U", 12)
+        start_x = pdf.get_x()
+        start_y = pdf.get_y()
         pdf.write(10, f"{to_tibetan_numeral(format_tibetan_date(joining_date))}")
-        pdf.set_font("Monlam", "", 12)
+        if pdf.get_x() > start_x:
+            pdf.line(start_x, start_y + 8, pdf.get_x(), start_y + 8)
         pdf.ln(10)
 
         x = pdf.get_x()
         y = pdf.get_y()
         
         pdf.write(10, "༣། གནས་རིམ།/གོ་གནས། ")
-        pdf.set_font("Monlam", "U", 12)
+        start_x = pdf.get_x()
+        start_y = pdf.get_y()
         pdf.write(10, f"{to_tibetan_numeral(post)}")
-        pdf.set_font("Monlam", "", 12)
+        if pdf.get_x() > start_x:
+            pdf.line(start_x, start_y + 8, pdf.get_x(), start_y + 8)
         
         pdf.set_xy(x + 95, y)
         pdf.write(10, "༤། ལས་ཁུངས་དང་སྡེ་ཚན། ")
-        pdf.set_font("Monlam", "U", 12)
+        start_x = pdf.get_x()
+        start_y = pdf.get_y()
         pdf.write(10, f"{row.get('Department', '')}")
-        pdf.set_font("Monlam", "", 12)
+        if pdf.get_x() > start_x:
+            pdf.line(start_x, start_y + 8, pdf.get_x(), start_y + 8)
         pdf.ln(10)
 
         pdf.ln(2)
@@ -261,9 +269,11 @@ def generate_leave_pdf(row):
                 new_x="LMARGIN", new_y="NEXT")
 
         pdf.write(10, "གུང་གསེང་ཉིན་གྲངས་ཇི་ཞུས། ")
-        pdf.set_font("Monlam", "U", 12)
+        start_x = pdf.get_x()
+        start_y = pdf.get_y()
         pdf.write(10, f"{to_tibetan_numeral(row.get('TotalDays', ''))}")
-        pdf.set_font("Monlam", "", 12)
+        if pdf.get_x() > start_x:
+            pdf.line(start_x, start_y + 8, pdf.get_x(), start_y + 8)
         pdf.ln(10)
 
         l_type = str(row.get('LeaveType', '')).upper()
@@ -333,9 +343,11 @@ def generate_leave_pdf(row):
         app_date = str(row.get('ApplicationDate', ''))
         if app_date and app_date != "nan":
             pdf.write(10, "༧། སྙན་ཞུ་ཕུལ་བའི་ཚེས། ")
-            pdf.set_font("Monlam", "U", 12)
+            start_x = pdf.get_x()
+            start_y = pdf.get_y()
             pdf.write(10, f"{to_tibetan_numeral(format_tibetan_date(app_date))}")
-            pdf.set_font("Monlam", "", 12)
+            if pdf.get_x() > start_x:
+                pdf.line(start_x, start_y + 8, pdf.get_x(), start_y + 8)
             pdf.ln(10)
 
         pdf.ln(10)
