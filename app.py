@@ -9,6 +9,18 @@ import extra_streamlit_components as stx
 import extra_streamlit_components as stx
 cookie_manager = stx.CookieManager(key="main_cookie_manager")
 
+if "pending_cookie" in st.session_state:
+    cookie_manager.set("auth_token", st.session_state.pending_cookie, max_age=30*24*60*60)
+    del st.session_state.pending_cookie
+
+if st.session_state.get("pending_cookie_delete"):
+    try:
+        cookie_manager.delete("auth_token")
+    except KeyError:
+        pass
+    del st.session_state["pending_cookie_delete"]
+
+
 NTFY_ADMIN_TOPIC = st.secrets.get("ntfy", {}).get("admin_topic")
 NTFY_COADMIN_TOPIC = st.secrets.get("ntfy", {}).get("coadmin_topic")
 NTFY_ACCOUNT_TOPIC = st.secrets.get("ntfy", {}).get("account_topic")
@@ -409,7 +421,7 @@ def login_screen():
                     st.session_state.user_name = selected_name
                     st.session_state.user_role = user_record["Role"]
                     if remember_me:
-                        cookie_manager.set("auth_token", f"{selected_name}|{entered_pin}", max_age=30*24*60*60)
+                        st.session_state.pending_cookie = f"{selected_name}|{entered_pin}"
                     st.success("Login successful!")
                     st.rerun()
                 else:
@@ -1614,11 +1626,7 @@ def main_dashboard():
     st.sidebar.divider()
 
     if st.sidebar.button("Logout"):
-        try:
-            if cookie_manager.get("auth_token"):
-                cookie_manager.delete("auth_token")
-        except KeyError:
-            pass
+        st.session_state.pending_cookie_delete = True
         
         st.session_state.logged_in = False
         st.session_state.user_name = None
