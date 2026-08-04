@@ -722,20 +722,24 @@ def employee_dashboard(hide_title=False):
                         open_pdf_dialog(pdf_bytes, f"{row['Name']}_Leave.pdf")
                         
                     if col3.button("🗑️ Delete", key=f"del_{row['ID']}"):
-                        df_requests = df_requests.drop(idx)
-                        conn.update(worksheet="LeaveRequests",
-                                    data=df_requests)
+                        df_requests.at[idx, "Status"] = "Cancelled"
+                        conn.update(worksheet="LeaveRequests", data=df_requests)
                         st.cache_data.clear()
+                        
                         send_ntfy_notification(
                             NTFY_ADMIN_TOPIC,
-                            "Leave Supported 🤝",
-                            f"Co-Admin {st.session_state.user_name} supported {row['TotalDays']} day(s) of leave for {row['Name']}."
+                            "Leave Cancelled ❌",
+                            f"{row['Name']} has cancelled their pending {row['LeaveType']} request for {row['TotalDays']} day(s)."
                         )
-                        send_ntfy_notification(
-                            NTFY_ACCOUNT_TOPIC,
-                            "Leave Supported ℹ️",
-                            f"Co-Admin {st.session_state.user_name} supported {row['TotalDays']} day(s) of leave for {row['Name']}. (FYI - Awaiting Admin Approval)"
-                        )
+                        # Only notify co-admin if one was selected
+                        selected_coadmin = str(row.get('SelectedCoAdmin', '')).strip()
+                        if selected_coadmin and selected_coadmin.lower() not in ['none', 'nan', '']:
+                            send_ntfy_notification(
+                                NTFY_COADMIN_TOPIC,
+                                "Leave Cancelled ❌",
+                                f"{row['Name']} has cancelled their pending {row['LeaveType']} request for {row['TotalDays']} day(s)."
+                            )
+                            
                         st.rerun()
 
             if not others.empty:
