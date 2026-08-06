@@ -1466,6 +1466,7 @@ def admin_dashboard():
 
 
 def coadmin_dashboard():
+    render_active_leaves_banner()
     st.title("Co-Admin Dashboard")
 
     st.subheader("Your Leave Profile")
@@ -1508,8 +1509,6 @@ def coadmin_dashboard():
         if to_review.empty:
             st.info("No requests currently assigned to you for support.")
         else:
-            st.error(
-                f"🔔 You have {len(to_review)} leave request(s) waiting for your support!")
             for idx, row in to_review.iterrows():
                 with st.expander(f"{row['Name']} requested {row['TotalDays']} days of {row['LeaveType']}"):
                     st.write(
@@ -1545,6 +1544,7 @@ def coadmin_dashboard():
 
 
 def accounts_dashboard():
+    render_active_leaves_banner()
     render_financial_year_settings()
     st.title("Accounts Dashboard")
     
@@ -1665,7 +1665,7 @@ def render_smart_notifications(role, user_name):
                 return str(x).strip() == "" or str(x).lower() == "nan"
             pending = df_requests[(df_requests["SelectedCoAdmin"] == user_name) & (df_requests["Status"].isin(["Pending", "Approved"])) & (df_requests["CoAdminAcknowledged"].apply(is_coadmin_pending))]
             if not pending.empty:
-                st.warning(f"🚨 You have {len(pending)} pending leave request(s) waiting for your support! Please check the list below.")
+                st.error(f"🔔 You have {len(pending)} leave request(s) waiting for your support! [Click here to scroll down and view them](#requests-to-support)")
                 
     elif role == "Accountant":
         if "Status" in df_requests.columns and "AccountsPunched" in df_requests.columns:
