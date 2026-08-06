@@ -1452,12 +1452,45 @@ def admin_dashboard():
         st.subheader("Approved Leaves (PDF Archive)")
         approved_requests = df_requests[df_requests["Status"] == "Approved"]
         if not approved_requests.empty:
-            for idx, row in approved_requests.iterrows():
+            approved_requests = approved_requests.iloc[::-1] # Reverse to show latest first
+            
+            if "page_admin" not in st.session_state:
+                st.session_state.page_admin = 0
+                
+            items_per_page = 10
+            total_items = len(approved_requests)
+            total_pages = max(1, (total_items - 1) // items_per_page + 1)
+            
+            # Ensure page is within bounds
+            if st.session_state.page_admin >= total_pages:
+                st.session_state.page_admin = total_pages - 1
+                
+            start_idx = st.session_state.page_admin * items_per_page
+            end_idx = start_idx + items_per_page
+            current_page_df = approved_requests.iloc[start_idx:end_idx]
+            
+            for idx, row in current_page_df.iterrows():
                 col1, col2 = st.columns([5, 1])
                 col1.write(f"**{row['Name']}** - {row['LeaveType']} ({row['StartDate']} to {row['EndDate']})")
                 pdf_bytes = generate_leave_pdf(row)
                 if col2.button("📄 Preview PDF", key=f"prev_admin_{row['ID']}"):
                     open_pdf_dialog(pdf_bytes, f"{row['Name']}_{row['StartDate']}_Leave.pdf")
+            
+            # Pagination Controls
+            st.divider()
+            p_col1, p_col2, p_col3 = st.columns([1, 2, 1])
+            with p_col1:
+                if st.session_state.page_admin > 0:
+                    if st.button("⬅️ Previous", key="prev_admin_btn"):
+                        st.session_state.page_admin -= 1
+                        st.rerun()
+            with p_col2:
+                st.markdown(f"<div style='text-align: center'>Page {st.session_state.page_admin + 1} of {total_pages}</div>", unsafe_allow_html=True)
+            with p_col3:
+                if st.session_state.page_admin < total_pages - 1:
+                    if st.button("Next ➡️", key="next_admin_btn"):
+                        st.session_state.page_admin += 1
+                        st.rerun()
         else:
             st.info("No approved leaves found.")
     st.divider()
@@ -1479,18 +1512,46 @@ def coadmin_dashboard():
 
     st.subheader("Office Availability Overview")
     if not df_requests.empty:
-        overview = df_requests[df_requests["Status"].isin(
-            ["Pending", "Approved"])]
+        overview = df_requests[df_requests["Status"].isin(["Pending", "Approved"])]
         if not overview.empty:
-            for idx, row in overview.iterrows():
+            overview = overview.iloc[::-1] # Show latest first
+            
+            if "page_coadmin" not in st.session_state:
+                st.session_state.page_coadmin = 0
+                
+            items_per_page = 10
+            total_items = len(overview)
+            total_pages = max(1, (total_items - 1) // items_per_page + 1)
+            
+            if st.session_state.page_coadmin >= total_pages:
+                st.session_state.page_coadmin = total_pages - 1
+                
+            start_idx = st.session_state.page_coadmin * items_per_page
+            end_idx = start_idx + items_per_page
+            current_page_df = overview.iloc[start_idx:end_idx]
+            
+            for idx, row in current_page_df.iterrows():
                 col1, col2 = st.columns([5, 1])
-                col1.write(
-                    f"**{row['Name']}** - {row['LeaveType']} ({row['StartDate']} to {row['EndDate']}) - {row['Status']}")
+                col1.write(f"**{row['Name']}** - {row['LeaveType']} ({row['StartDate']} to {row['EndDate']}) - {row['Status']}")
                 if row['Status'] == "Approved":
                     pdf_bytes = generate_leave_pdf(row)
                     if col2.button("📄 Preview PDF", key=f"prev_co_{row['ID']}"):
-                        open_pdf_dialog(
-                            pdf_bytes, f"{row['Name']}_{row['StartDate']}_Leave.pdf")
+                        open_pdf_dialog(pdf_bytes, f"{row['Name']}_{row['StartDate']}_Leave.pdf")
+            
+            st.divider()
+            p_col1, p_col2, p_col3 = st.columns([1, 2, 1])
+            with p_col1:
+                if st.session_state.page_coadmin > 0:
+                    if st.button("⬅️ Previous", key="prev_coadmin_btn"):
+                        st.session_state.page_coadmin -= 1
+                        st.rerun()
+            with p_col2:
+                st.markdown(f"<div style='text-align: center'>Page {st.session_state.page_coadmin + 1} of {total_pages}</div>", unsafe_allow_html=True)
+            with p_col3:
+                if st.session_state.page_coadmin < total_pages - 1:
+                    if st.button("Next ➡️", key="next_coadmin_btn"):
+                        st.session_state.page_coadmin += 1
+                        st.rerun()
         else:
             st.info("No data available.")
     else:
@@ -1499,11 +1560,15 @@ def coadmin_dashboard():
     st.divider()
 
     st.subheader("Requests to Support")
-    if not df_requests.empty and "SelectedCoAdmin" in df_requests.columns:
+    if "CoAdminAcknowledged" not in df_requests.columns:
+        df_requests["CoAdminAcknowledged"] = ""
+    if "SelectedCoAdmin" not in df_requests.columns:
+        df_requests["SelectedCoAdmin"] = ""
+    if not df_requests.empty:
         to_review = df_requests[
-            (df_requests["SelectedCoAdmin"] == st.session_state.user_name) &
+            (df_requests["SelectedCoAdmin"].astype(str).str.strip() == str(st.session_state.user_name).strip()) &
             (df_requests["CoAdminAcknowledged"].apply(is_unacknowledged)) &
-            (df_requests["Status"].isin(["Pending", "Approved"]))
+            (df_requests["Status"].astype(str).str.strip().isin(["Pending", "Approved"]))
         ]
 
         if to_review.empty:
@@ -1564,7 +1629,23 @@ def accounts_dashboard():
         
         st.subheader("All Leaves Overview")
         if not df_requests.empty:
-            for idx, row in df_requests.iterrows():
+            all_leaves = df_requests.iloc[::-1] # Show latest first
+            
+            if "page_accounts" not in st.session_state:
+                st.session_state.page_accounts = 0
+                
+            items_per_page = 10
+            total_items = len(all_leaves)
+            total_pages = max(1, (total_items - 1) // items_per_page + 1)
+            
+            if st.session_state.page_accounts >= total_pages:
+                st.session_state.page_accounts = total_pages - 1
+                
+            start_idx = st.session_state.page_accounts * items_per_page
+            end_idx = start_idx + items_per_page
+            current_page_df = all_leaves.iloc[start_idx:end_idx]
+            
+            for idx, row in current_page_df.iterrows():
                 col1, col2, col3 = st.columns([4, 1, 1])
                 
                 raw_status = str(row.get('Status', '')).strip()
@@ -1589,6 +1670,21 @@ def accounts_dashboard():
                     if col2.button("👁️ Preview", key=f"prev_acc_all_{row['ID']}"):
                         open_pdf_dialog(pdf_bytes, f"{row['Name']}_{row['StartDate']}_Leave.pdf")
                     col3.download_button("📄 PDF", data=pdf_bytes, file_name=f"{row['Name']}_{row['StartDate']}_Leave.pdf", mime="application/pdf", key=f"dl_acc_{row['ID']}")
+                    
+            st.divider()
+            p_col1, p_col2, p_col3 = st.columns([1, 2, 1])
+            with p_col1:
+                if st.session_state.page_accounts > 0:
+                    if st.button("⬅️ Previous", key="prev_accounts_btn"):
+                        st.session_state.page_accounts -= 1
+                        st.rerun()
+            with p_col2:
+                st.markdown(f"<div style='text-align: center'>Page {st.session_state.page_accounts + 1} of {total_pages}</div>", unsafe_allow_html=True)
+            with p_col3:
+                if st.session_state.page_accounts < total_pages - 1:
+                    if st.button("Next ➡️", key="next_accounts_btn"):
+                        st.session_state.page_accounts += 1
+                        st.rerun()
         else:
             st.info("No data available.")
             
@@ -1660,10 +1756,16 @@ def render_smart_notifications(role, user_name):
                 st.warning(f"🚨 You have {len(pending)} pending leave request(s) waiting for your approval! Please check the **Admin Tasks** tab.")
                 
     elif role == "Co-Admin":
-        if "SelectedCoAdmin" in df_requests.columns and "CoAdminAcknowledged" in df_requests.columns:
+        if "CoAdminAcknowledged" not in df_requests.columns:
+            df_requests["CoAdminAcknowledged"] = ""
+        if "SelectedCoAdmin" not in df_requests.columns:
+            df_requests["SelectedCoAdmin"] = ""
+        if True:
             def is_coadmin_pending(x):
-                return str(x).strip() == "" or str(x).lower() == "nan"
-            pending = df_requests[(df_requests["SelectedCoAdmin"] == user_name) & (df_requests["Status"].isin(["Pending", "Approved"])) & (df_requests["CoAdminAcknowledged"].apply(is_coadmin_pending))]
+                if pd.isna(x): return True
+                v = str(x).strip().lower()
+                return v in ["", "nan", "none", "no", "pending", "false", "0"]
+            pending = df_requests[(df_requests["SelectedCoAdmin"].astype(str).str.strip() == str(user_name).strip()) & (df_requests["Status"].astype(str).str.strip().isin(["Pending", "Approved"])) & (df_requests["CoAdminAcknowledged"].apply(is_coadmin_pending))]
             if not pending.empty:
                 st.error(f"🔔 You have {len(pending)} leave request(s) waiting for your support! [Click here to scroll down and view them](#requests-to-support)")
                 
