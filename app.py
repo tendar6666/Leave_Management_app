@@ -1559,7 +1559,7 @@ def coadmin_dashboard():
 
     st.divider()
 
-    st.subheader("Requests to Support")
+    st.subheader("Requests to Support", anchor="requests-to-support")
     if "CoAdminAcknowledged" not in df_requests.columns:
         df_requests["CoAdminAcknowledged"] = ""
     if "SelectedCoAdmin" not in df_requests.columns:
