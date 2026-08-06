@@ -1501,7 +1501,8 @@ def coadmin_dashboard():
     if not df_requests.empty and "SelectedCoAdmin" in df_requests.columns:
         to_review = df_requests[
             (df_requests["SelectedCoAdmin"] == st.session_state.user_name) &
-            (df_requests["CoAdminAcknowledged"].apply(is_unacknowledged))
+            (df_requests["CoAdminAcknowledged"].apply(is_unacknowledged)) &
+            (df_requests["Status"].isin(["Pending", "Approved"]))
         ]
 
         if to_review.empty:
@@ -1662,7 +1663,7 @@ def render_smart_notifications(role, user_name):
         if "SelectedCoAdmin" in df_requests.columns and "CoAdminAcknowledged" in df_requests.columns:
             def is_coadmin_pending(x):
                 return str(x).strip() == "" or str(x).lower() == "nan"
-            pending = df_requests[(df_requests["SelectedCoAdmin"] == user_name) & (df_requests["Status"] == "Pending") & (df_requests["CoAdminAcknowledged"].apply(is_coadmin_pending))]
+            pending = df_requests[(df_requests["SelectedCoAdmin"] == user_name) & (df_requests["Status"].isin(["Pending", "Approved"])) & (df_requests["CoAdminAcknowledged"].apply(is_coadmin_pending))]
             if not pending.empty:
                 st.warning(f"🚨 You have {len(pending)} pending leave request(s) waiting for your support! Please check the list below.")
                 
