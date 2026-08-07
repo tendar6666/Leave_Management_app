@@ -634,70 +634,71 @@ def employee_dashboard(hide_title=False):
         open_pdf_dialog(preview_pdf_bytes, "Preview.pdf")
 
     if col_sub.button("Submit Reversal" if is_reversal else "Submit Request", type="primary"):
-        if total_days <= 0:
-            st.error("Total days must be greater than 0.")
-        elif start_date > end_date:
-            st.error("End Date must be after or equal to Start Date.")
-        elif start_date != end_date and total_days < 1:
-            st.error(
-                "Total days must be at least 1 when your leave spans multiple days.")
-        else:
-            try:
-                df_requests = load_leave_requests()
-                new_request = pd.DataFrame([{
-                    "ID": str(uuid.uuid4())[:8].upper(),
-                    "Name": st.session_state.user_name,
-                    "LeaveType": f"Return-{leave_type}" if is_reversal else leave_type,
-                    "Reason": reason,
-                    "EffectsServiceYear": effects_service_year,
-                    "ApplicationDate": application_date.strftime("%Y-%m-%d"),
-                    "StartDate": start_date.strftime("%Y-%m-%d"),
-                    "StartHalf": start_half,
-                    "EndDate": end_date.strftime("%Y-%m-%d"),
-                    "EndHalf": end_half,
-                    "TotalDays": final_days,
-                    "Department": department,
-                    "SelectedCoAdmin": selected_coadmin,
-                    "Status": "Pending",
-                    "CoAdminAcknowledged": "No",
-                    "SupportedBy": "",
-                    "AccountsPunched": "No",
-                    "PunchedBy": "",
-                    "ApprovedBy": "",
-                    "CLBalance": balances.get("CL", "N/A"),
-                    "ALBalance": balances.get("AL", "N/A"),
-                    "SLBalance": balances.get("SL", "N/A"),
-                    "ULBalance": balances.get("UL", "N/A")
-                }])
-                updated_df = pd.concat(
-                    [df_requests, new_request], ignore_index=True)
-                conn.update(worksheet="LeaveRequests", data=updated_df)
-                st.cache_data.clear()
-                st.success("Request submitted successfully!")
-                if selected_coadmin and selected_coadmin != "None":
-                    admin_msg = f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type}. (Co-Admin: {selected_coadmin}). Pending approval!"
-                else:
-                    admin_msg = f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type}. Pending approval!"
+        with st.spinner('Processing... Please wait and do not click again.'):
+            if total_days <= 0:
+                st.error("Total days must be greater than 0.")
+            elif start_date > end_date:
+                st.error("End Date must be after or equal to Start Date.")
+            elif start_date != end_date and total_days < 1:
+                st.error(
+                    "Total days must be at least 1 when your leave spans multiple days.")
+            else:
+                try:
+                    df_requests = load_leave_requests()
+                    new_request = pd.DataFrame([{
+                        "ID": str(uuid.uuid4())[:8].upper(),
+                        "Name": st.session_state.user_name,
+                        "LeaveType": f"Return-{leave_type}" if is_reversal else leave_type,
+                        "Reason": reason,
+                        "EffectsServiceYear": effects_service_year,
+                        "ApplicationDate": application_date.strftime("%Y-%m-%d"),
+                        "StartDate": start_date.strftime("%Y-%m-%d"),
+                        "StartHalf": start_half,
+                        "EndDate": end_date.strftime("%Y-%m-%d"),
+                        "EndHalf": end_half,
+                        "TotalDays": final_days,
+                        "Department": department,
+                        "SelectedCoAdmin": selected_coadmin,
+                        "Status": "Pending",
+                        "CoAdminAcknowledged": "No",
+                        "SupportedBy": "",
+                        "AccountsPunched": "No",
+                        "PunchedBy": "",
+                        "ApprovedBy": "",
+                        "CLBalance": balances.get("CL", "N/A"),
+                        "ALBalance": balances.get("AL", "N/A"),
+                        "SLBalance": balances.get("SL", "N/A"),
+                        "ULBalance": balances.get("UL", "N/A")
+                    }])
+                    updated_df = pd.concat(
+                        [df_requests, new_request], ignore_index=True)
+                    conn.update(worksheet="LeaveRequests", data=updated_df)
+                    st.cache_data.clear()
+                    st.success("Request submitted successfully!")
+                    if selected_coadmin and selected_coadmin != "None":
+                        admin_msg = f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type}. (Co-Admin: {selected_coadmin}). Pending approval!"
+                    else:
+                        admin_msg = f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type}. Pending approval!"
 
-                send_ntfy_notification(
-                    NTFY_ADMIN_TOPIC, 
-                    "New Leave Request 🚨", 
-                    admin_msg
-                )
-                if selected_coadmin and selected_coadmin != "None":
                     send_ntfy_notification(
-                        NTFY_COADMIN_TOPIC,
-                        "Leave Support Requested 🤝",
-                        f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type} and selected {selected_coadmin} as Co-Admin."
+                        NTFY_ADMIN_TOPIC, 
+                        "New Leave Request 🚨", 
+                        admin_msg
                     )
-                send_ntfy_notification(
-                    NTFY_ACCOUNT_TOPIC,
-                    "New Leave Request ℹ️",
-                    f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type}. (FYI - Pending Approval)"
-                )
-                st.rerun()
-            except Exception as e:
-                st.error(f"Failed to submit request: {e}")
+                    if selected_coadmin and selected_coadmin != "None":
+                        send_ntfy_notification(
+                            NTFY_COADMIN_TOPIC,
+                            "Leave Support Requested 🤝",
+                            f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type} and selected {selected_coadmin} as Co-Admin."
+                        )
+                    send_ntfy_notification(
+                        NTFY_ACCOUNT_TOPIC,
+                        "New Leave Request ℹ️",
+                        f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type}. (FYI - Pending Approval)"
+                    )
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to submit request: {e}")
 
     st.divider()
 
@@ -722,25 +723,26 @@ def employee_dashboard(hide_title=False):
                         open_pdf_dialog(pdf_bytes, f"{row['Name']}_Leave.pdf")
                         
                     if col3.button("🗑️ Delete", key=f"del_{row['ID']}"):
-                        df_requests.at[idx, "Status"] = "Cancelled"
-                        conn.update(worksheet="LeaveRequests", data=df_requests)
-                        st.cache_data.clear()
+                        with st.spinner('Processing... Please wait and do not click again.'):
+                            df_requests.at[idx, "Status"] = "Cancelled"
+                            conn.update(worksheet="LeaveRequests", data=df_requests)
+                            st.cache_data.clear()
                         
-                        send_ntfy_notification(
-                            NTFY_ADMIN_TOPIC,
-                            "Leave Cancelled ❌",
-                            f"{row['Name']} has cancelled their pending {row['LeaveType']} request for {row['TotalDays']} day(s)."
-                        )
-                        # Only notify co-admin if one was selected
-                        selected_coadmin = str(row.get('SelectedCoAdmin', '')).strip()
-                        if selected_coadmin and selected_coadmin.lower() not in ['none', 'nan', '']:
                             send_ntfy_notification(
-                                NTFY_COADMIN_TOPIC,
+                                NTFY_ADMIN_TOPIC,
                                 "Leave Cancelled ❌",
                                 f"{row['Name']} has cancelled their pending {row['LeaveType']} request for {row['TotalDays']} day(s)."
                             )
+                            # Only notify co-admin if one was selected
+                            selected_coadmin = str(row.get('SelectedCoAdmin', '')).strip()
+                            if selected_coadmin and selected_coadmin.lower() not in ['none', 'nan', '']:
+                                send_ntfy_notification(
+                                    NTFY_COADMIN_TOPIC,
+                                    "Leave Cancelled ❌",
+                                    f"{row['Name']} has cancelled their pending {row['LeaveType']} request for {row['TotalDays']} day(s)."
+                                )
                             
-                        st.rerun()
+                            st.rerun()
 
             if not others.empty:
                 st.markdown("**✅ Processed Requests**")
@@ -1395,59 +1397,61 @@ def admin_dashboard():
                             open_pdf_dialog(pdf_bytes, f"{row['Name']}_{row['StartDate']}_Leave_Preview.pdf")
                         col1, col2 = st.columns(2)
                         if col1.button("Approve", key=f"approve_{row['ID']}"):
-                            df_requests.at[idx, "Status"] = "Approved"
-                            df_requests.at[idx, "ApprovedBy"] = st.session_state.user_name
-                            conn.update(worksheet="LeaveRequests", data=df_requests)
-                            if staff_df is not None:
-                                employee_idx = staff_df[staff_df["Name"] == row["Name"]].index
-                                if not employee_idx.empty:
-                                    e_idx = employee_idx[0]
-                                    leave_type = row["LeaveType"]
-                                    actual_leave_type = leave_type.replace("Return-", "")
-                                    if actual_leave_type in ["CL", "SL", "AL", "UL"]:
-                                        col_name = f"Used_{actual_leave_type}"
-                                        if col_name in staff_df.columns:
-                                            current_used = float(staff_df.at[e_idx, col_name]) if pd.notnull(staff_df.at[e_idx, col_name]) else 0
-                                            staff_df.at[e_idx, col_name] = current_used + float(row["TotalDays"])
-                                            balance_col = f"Balance_{actual_leave_type}"
-                                            if balance_col in staff_df.columns:
-                                                current_bal = float(staff_df.at[e_idx, balance_col]) if pd.notnull(staff_df.at[e_idx, balance_col]) else 0
-                                                staff_df.at[e_idx, balance_col] = current_bal - float(row["TotalDays"])
-                                    if row.get("EffectsServiceYear") == "Yes":
-                                        cum_col = "Current Year Leave affecting Service Year"
-                                        if cum_col in staff_df.columns:
-                                            current_cum = float(staff_df.at[e_idx, cum_col]) if pd.notnull(staff_df.at[e_idx, cum_col]) else 0
-                                            staff_df.at[e_idx, cum_col] = current_cum + float(row["TotalDays"])
-                                    penalty_col = "Service Year Penalty"
-                                    if penalty_col in staff_df.columns:
-                                        def sf(val):
-                                            try: return float(val)
-                                            except: return 0.0
-                                        curr_eff = sf(staff_df.at[e_idx, "Current Year Leave affecting Service Year"]) if "Current Year Leave affecting Service Year" in staff_df.columns else 0.0
-                                        eff = sf(staff_df.at[e_idx, "Cummulative leave effecting Service year.(Education Leave & Etc)."]) if "Cummulative leave effecting Service year.(Education Leave & Etc)." in staff_df.columns else 0.0
-                                        u_ul = sf(staff_df.at[e_idx, "Used_UL"]) if "Used_UL" in staff_df.columns else 0.0
-                                        c_ul = sf(staff_df.at[e_idx, "Cumulative_UL"]) if "Cumulative_UL" in staff_df.columns else 0.0
-                                        staff_df.at[e_idx, penalty_col] = eff + curr_eff + u_ul + c_ul
-                                    conn.update(worksheet="Staff_Master", data=inject_balance_formulas(staff_df))
-                            st.cache_data.clear()
-                            st.success(f"Approved {row['Name']}'s request!")
-                            send_ntfy_notification(
-                                NTFY_ACCOUNT_TOPIC,
-                                "Leave Approved - Action Required 📝",
-                                f"Admin approved {row['TotalDays']} day(s) of {row['LeaveType']} for {row['Name']}. Please punch it in the register!"
-                            )
-                            send_ntfy_notification(
-                                NTFY_COADMIN_TOPIC,
-                                "Leave Approved ✅",
-                                f"Admin approved {row['TotalDays']} day(s) of leave for {row['Name']}."
-                            )
-                            st.rerun()
+                            with st.spinner('Processing... Please wait and do not click again.'):
+                                df_requests.at[idx, "Status"] = "Approved"
+                                df_requests.at[idx, "ApprovedBy"] = st.session_state.user_name
+                                conn.update(worksheet="LeaveRequests", data=df_requests)
+                                if staff_df is not None:
+                                    employee_idx = staff_df[staff_df["Name"] == row["Name"]].index
+                                    if not employee_idx.empty:
+                                        e_idx = employee_idx[0]
+                                        leave_type = row["LeaveType"]
+                                        actual_leave_type = leave_type.replace("Return-", "")
+                                        if actual_leave_type in ["CL", "SL", "AL", "UL"]:
+                                            col_name = f"Used_{actual_leave_type}"
+                                            if col_name in staff_df.columns:
+                                                current_used = float(staff_df.at[e_idx, col_name]) if pd.notnull(staff_df.at[e_idx, col_name]) else 0
+                                                staff_df.at[e_idx, col_name] = current_used + float(row["TotalDays"])
+                                                balance_col = f"Balance_{actual_leave_type}"
+                                                if balance_col in staff_df.columns:
+                                                    current_bal = float(staff_df.at[e_idx, balance_col]) if pd.notnull(staff_df.at[e_idx, balance_col]) else 0
+                                                    staff_df.at[e_idx, balance_col] = current_bal - float(row["TotalDays"])
+                                        if row.get("EffectsServiceYear") == "Yes":
+                                            cum_col = "Current Year Leave affecting Service Year"
+                                            if cum_col in staff_df.columns:
+                                                current_cum = float(staff_df.at[e_idx, cum_col]) if pd.notnull(staff_df.at[e_idx, cum_col]) else 0
+                                                staff_df.at[e_idx, cum_col] = current_cum + float(row["TotalDays"])
+                                        penalty_col = "Service Year Penalty"
+                                        if penalty_col in staff_df.columns:
+                                            def sf(val):
+                                                try: return float(val)
+                                                except: return 0.0
+                                            curr_eff = sf(staff_df.at[e_idx, "Current Year Leave affecting Service Year"]) if "Current Year Leave affecting Service Year" in staff_df.columns else 0.0
+                                            eff = sf(staff_df.at[e_idx, "Cummulative leave effecting Service year.(Education Leave & Etc)."]) if "Cummulative leave effecting Service year.(Education Leave & Etc)." in staff_df.columns else 0.0
+                                            u_ul = sf(staff_df.at[e_idx, "Used_UL"]) if "Used_UL" in staff_df.columns else 0.0
+                                            c_ul = sf(staff_df.at[e_idx, "Cumulative_UL"]) if "Cumulative_UL" in staff_df.columns else 0.0
+                                            staff_df.at[e_idx, penalty_col] = eff + curr_eff + u_ul + c_ul
+                                        conn.update(worksheet="Staff_Master", data=inject_balance_formulas(staff_df))
+                                st.cache_data.clear()
+                                st.success(f"Approved {row['Name']}'s request!")
+                                send_ntfy_notification(
+                                    NTFY_ACCOUNT_TOPIC,
+                                    "Leave Approved - Action Required 📝",
+                                    f"Admin approved {row['TotalDays']} day(s) of {row['LeaveType']} for {row['Name']}. Please punch it in the register!"
+                                )
+                                send_ntfy_notification(
+                                    NTFY_COADMIN_TOPIC,
+                                    "Leave Approved ✅",
+                                    f"Admin approved {row['TotalDays']} day(s) of leave for {row['Name']}."
+                                )
+                                st.rerun()
                         if col2.button("Reject", key=f"reject_{row['ID']}"):
-                            df_requests.at[idx, "Status"] = "Rejected"
-                            conn.update(worksheet="LeaveRequests", data=df_requests)
-                            st.cache_data.clear()
-                            st.warning(f"Rejected {row['Name']}'s request.")
-                            st.rerun()
+                            with st.spinner('Processing... Please wait and do not click again.'):
+                                df_requests.at[idx, "Status"] = "Rejected"
+                                conn.update(worksheet="LeaveRequests", data=df_requests)
+                                st.cache_data.clear()
+                                st.warning(f"Rejected {row['Name']}'s request.")
+                                st.rerun()
         st.divider()
         st.subheader("Approved Leaves (PDF Archive)")
         approved_requests = df_requests[df_requests["Status"] == "Approved"]
@@ -1583,24 +1587,25 @@ def coadmin_dashboard():
                         st.warning(
                             f"🚨 **ATTENTION:** This is an '{row['LeaveType']}' leave. The employee has checked 'EffectsServiceYear = {row.get('EffectsServiceYear')}'. Please double-check if this type of leave (e.g. Education Leave) should delay their service year before approving!")
                     if st.button("Support Request", type="primary", key=f"ack_{row['ID']}"):
-                        df_requests.at[idx,
-                                        "CoAdminAcknowledged"] = "Supported"
-                        df_requests.at[idx,
-                                        "SupportedBy"] = st.session_state.user_name
-                        conn.update(worksheet="LeaveRequests",
-                                    data=df_requests)
-                        st.cache_data.clear()
-                        send_ntfy_notification(
-                            NTFY_ADMIN_TOPIC,
-                            "Leave Supported 🤝",
-                            f"Co-Admin {st.session_state.user_name} supported {row['TotalDays']} day(s) of leave for {row['Name']}."
-                        )
-                        send_ntfy_notification(
-                            NTFY_ACCOUNT_TOPIC,
-                            "Leave Supported ℹ️",
-                            f"Co-Admin {st.session_state.user_name} supported {row['TotalDays']} day(s) of leave for {row['Name']}. (FYI - Awaiting Admin Approval)"
-                        )
-                        st.rerun()
+                        with st.spinner('Processing... Please wait and do not click again.'):
+                            df_requests.at[idx,
+                                            "CoAdminAcknowledged"] = "Supported"
+                            df_requests.at[idx,
+                                            "SupportedBy"] = st.session_state.user_name
+                            conn.update(worksheet="LeaveRequests",
+                                        data=df_requests)
+                            st.cache_data.clear()
+                            send_ntfy_notification(
+                                NTFY_ADMIN_TOPIC,
+                                "Leave Supported 🤝",
+                                f"Co-Admin {st.session_state.user_name} supported {row['TotalDays']} day(s) of leave for {row['Name']}."
+                            )
+                            send_ntfy_notification(
+                                NTFY_ACCOUNT_TOPIC,
+                                "Leave Supported ℹ️",
+                                f"Co-Admin {st.session_state.user_name} supported {row['TotalDays']} day(s) of leave for {row['Name']}. (FYI - Awaiting Admin Approval)"
+                            )
+                            st.rerun()
     else:
         st.info("No leave requests found.")
         
