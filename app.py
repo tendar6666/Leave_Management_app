@@ -1448,27 +1448,36 @@ def render_organization_calendar():
                 align = "center"
                 grad = ""
                 
-                if curr_d == start_d and row.get('StartHalf') == "Morning":
+                sh = str(row.get('StartHalf', ''))
+                eh = str(row.get('EndHalf', ''))
+                
+                if curr_d == start_d and "Morning" in sh:
                     is_half = True
                     align = "left"
                     grad = f"background: linear-gradient(to right, {bg} 50%, transparent 50%); border-left: {border};"
-                elif curr_d == start_d and row.get('StartHalf') == "Afternoon":
+                elif curr_d == start_d and "Evening" in sh:
                     is_half = True
                     align = "right"
                     grad = f"background: linear-gradient(to left, {bg} 50%, transparent 50%); border-right: {border};"
-                elif curr_d == end_d and row.get('EndHalf') == "Morning":
+                elif curr_d == end_d and "Morning" in eh:
                     is_half = True
                     align = "left"
                     grad = f"background: linear-gradient(to right, {bg} 50%, transparent 50%); border-left: {border};"
-                elif curr_d == end_d and row.get('EndHalf') == "Afternoon":
+                elif curr_d == end_d and "Evening" in eh:
                     is_half = True
                     align = "right"
                     grad = f"background: linear-gradient(to left, {bg} 50%, transparent 50%); border-right: {border};"
                 
                 event_txt = f"{name} - {display_type}"
                 if is_half:
-                    half_str = str(row.get('StartHalf') if curr_d == start_d else row.get('EndHalf'))[0]
-                    event_txt += f" ({half_str})"
+                    half_str = str(row.get('StartHalf') if curr_d == start_d else row.get('EndHalf'))
+                    if "Morning" in half_str:
+                        h_char = "Mor"
+                    elif "Evening" in half_str:
+                        h_char = "Eve"
+                    else:
+                        h_char = "Half"
+                    event_txt += f" ({h_char})"
                 
                 if is_half:
                     style = f"{grad} color: #333; text-decoration: {text_decor}; font-size: 0.75em; padding: 2px 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 2px; text-align: {align};"
