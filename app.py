@@ -3,6 +3,7 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime, timedelta
 import uuid
+import calendar
 import requests
 import extra_streamlit_components as stx
 
@@ -1330,6 +1331,195 @@ def render_user_management(is_admin):
 
 
 
+
+def render_organization_calendar():
+    st.subheader("📅 Organization Leave Calendar", anchor="org-calendar")
+    
+    # Fetch Financial Year Bounds
+    try:
+        fy_df = conn.read(worksheet="FinancialYear", ttl=0)
+        fy_start_str = str(fy_df.iloc[0].get("Start Date", "")).strip()
+        fy_end_str = str(fy_df.iloc[0].get("End Date", "")).strip()
+        fy_start = datetime.strptime(fy_start_str, "%Y-%m-%d").date().replace(day=1)
+        fy_end = datetime.strptime(fy_end_str, "%Y-%m-%d").date().replace(day=1)
+    except Exception as e:
+        # Fallback
+        fy_start = datetime.now().date().replace(year=datetime.now().year-1, month=1, day=1)
+        fy_end = datetime.now().date().replace(year=datetime.now().year+1, month=12, day=1)
+
+    if "cal_date" not in st.session_state:
+        # Default to today, but if today is outside FY, default to FY start
+        today_start = datetime.now().date().replace(day=1)
+        if today_start >= fy_start and today_start <= fy_end:
+            st.session_state.cal_date = today_start
+        else:
+            st.session_state.cal_date = fy_start
+            
+    curr = st.session_state.cal_date
+            
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col1:
+        # Calculate prev month
+        if curr.month == 1:
+            prev_m = curr.replace(year=curr.year-1, month=12)
+        else:
+            prev_m = curr.replace(month=curr.month-1)
+            
+        if prev_m >= fy_start:
+            if st.button("⬅️ Previous Month", key="prev_cal_btn"):
+                st.session_state.cal_date = prev_m
+                st.rerun()
+        else:
+            st.write("") # Spacer
+            
+    with col2:
+        st.markdown(f"<h3 style='text-align: center'>{calendar.month_name[st.session_state.cal_date.month]} {st.session_state.cal_date.year}</h3>", unsafe_allow_html=True)
+        
+    with col3:
+        # Calculate next month
+        if curr.month == 12:
+            next_m = curr.replace(year=curr.year+1, month=1)
+        else:
+            next_m = curr.replace(month=curr.month+1)
+            
+        if next_m <= fy_end:
+            # float right
+            st.markdown('<div style="text-align: right;">', unsafe_allow_html=True)
+            if st.button("Next Month ➡️", key="next_cal_btn"):
+                st.session_state.cal_date = next_m
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+        else:
+            st.write("") # Spacer
+            
+    df_requests = load_leave_requests()
+    if df_requests is None or df_requests.empty:
+        st.info("No leave data to display.")
+        return
+        
+    year = st.session_state.cal_date.year
+    month = st.session_state.cal_date.month
+    
+    events = {day: [] for day in range(1, 32)}
+    
+    for idx, row in df_requests.iterrows():
+        try:
+            start_d = datetime.strptime(str(row['StartDate']).strip(), "%Y-%m-%d").date()
+            end_d = datetime.strptime(str(row['EndDate']).strip(), "%Y-%m-%d").date()
+        except:
+            continue
+            
+        status = str(row.get('Status', '')).strip()
+        if status == "Rejected":
+            continue
+            
+        name = str(row.get('Name', '')).strip()
+        l_type = str(row.get('LeaveType', '')).strip()
+        
+        is_reversal = l_type.startswith("Return-") or l_type.startswith("Rev-")
+        display_type = l_type if not is_reversal else f"Rev-{l_type.replace('Return-', '').replace('Rev-', '')}"
+        
+        if status == "Cancelled":
+            bg = "#e0e0e0"
+            color = "#777"
+            border = "1px solid #ccc"
+            text_decor = "line-through"
+        elif status == "Pending":
+            bg = "#FF9800"
+            color = "white"
+            border = "1px solid #F57C00"
+            text_decor = "none"
+        else:
+            if is_reversal:
+                bg = "#9C27B0"
+                border = "1px solid #7B1FA2"
+            else:
+                bg = "#4CAF50"
+                border = "1px solid #388E3C"
+            color = "white"
+            text_decor = "none"
+            
+        curr_d = start_d
+        while curr_d <= end_d:
+            if curr_d.year == year and curr_d.month == month:
+                day = curr_d.day
+                
+                is_half = False
+                align = "center"
+                grad = ""
+                
+                if curr_d == start_d and row.get('StartHalf') == "Morning":
+                    is_half = True
+                    align = "left"
+                    grad = f"background: linear-gradient(to right, {bg} 50%, transparent 50%); border-left: {border};"
+                elif curr_d == start_d and row.get('StartHalf') == "Afternoon":
+                    is_half = True
+                    align = "right"
+                    grad = f"background: linear-gradient(to left, {bg} 50%, transparent 50%); border-right: {border};"
+                elif curr_d == end_d and row.get('EndHalf') == "Morning":
+                    is_half = True
+                    align = "left"
+                    grad = f"background: linear-gradient(to right, {bg} 50%, transparent 50%); border-left: {border};"
+                elif curr_d == end_d and row.get('EndHalf') == "Afternoon":
+                    is_half = True
+                    align = "right"
+                    grad = f"background: linear-gradient(to left, {bg} 50%, transparent 50%); border-right: {border};"
+                
+                event_txt = f"{name} - {display_type}"
+                if is_half:
+                    half_str = str(row.get('StartHalf') if curr_d == start_d else row.get('EndHalf'))[0]
+                    event_txt += f" ({half_str})"
+                
+                if is_half:
+                    style = f"{grad} color: #333; text-decoration: {text_decor}; font-size: 0.75em; padding: 2px 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 2px; text-align: {align};"
+                else:
+                    style = f"background: {bg}; color: {color}; border: {border}; text-decoration: {text_decor}; font-size: 0.75em; padding: 2px 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 2px; text-align: center;"
+                
+                events[day].append(f'<div style="{style}" title="{status}">{event_txt}</div>')
+                
+            curr_d += timedelta(days=1)
+            
+    first_weekday, num_days = calendar.monthrange(year, month)
+    start_offset = (first_weekday + 1) % 7
+    
+    html = []
+    html.append(f'<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; background: #ddd; border: 1px solid #ddd; margin-bottom: 20px;">')
+    
+    days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    for day in days:
+        html.append(f'<div style="background: #f0f0f0; text-align: center; font-weight: bold; padding: 5px; color: #333;">{day}</div>')
+        
+    saturday_count = 0
+    for i in range(start_offset):
+        html.append(f'<div style="background: #fafafa; min-height: 100px;"></div>')
+        
+    for day in range(1, num_days + 1):
+        col_idx = (start_offset + day - 1) % 7
+        
+        is_weekend = False
+        if col_idx == 0:
+            is_weekend = True
+        elif col_idx == 6:
+            saturday_count += 1
+            if saturday_count != 1:
+                is_weekend = True
+                
+        bg_color = "#f4f4f4" if is_weekend else "white"
+        
+        html.append(f'<div style="background: {bg_color}; min-height: 100px; padding: 5px; display: flex; flex-direction: column;">')
+        html.append(f'<div style="font-weight: bold; font-size: 0.85em; color: #555; margin-bottom: 5px; text-align: right;">{day}</div>')
+        for ev in events[day]:
+            html.append(ev)
+        html.append('</div>')
+        
+    end_offset = (7 - ((start_offset + num_days) % 7)) % 7
+    for i in range(end_offset):
+        html.append(f'<div style="background: #fafafa; min-height: 100px;"></div>')
+        
+    html.append('</div>')
+    st.markdown("\n".join(html), unsafe_allow_html=True)
+
+
 def render_active_leaves_banner():
     import datetime
     df = load_leave_requests()
@@ -1369,6 +1559,8 @@ def admin_dashboard():
         render_user_management(is_admin=True)
         
     with tab1:
+        with st.expander("📅 View Organization Calendar", expanded=False):
+            render_organization_calendar()
         render_master_balance_table()
         st.divider()
         staff_df = load_staff_master()
@@ -1627,6 +1819,8 @@ def accounts_dashboard():
         render_user_management(is_admin=False)
         
     with tab1:
+        with st.expander("📅 View Organization Calendar", expanded=False):
+            render_organization_calendar()
         render_master_balance_table()
         st.divider()
         
