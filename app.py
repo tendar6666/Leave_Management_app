@@ -592,17 +592,40 @@ def employee_dashboard(hide_title=False):
     start_half = col_start.radio("Start Time", [
                                 "Full Day ཉིན་ཆ་ཚང་།", "Morning ཞོགས་པ།", "Evening ཉིན་རྒྱབ།"], index=0, horizontal=True)
     end_date = col_end.date_input("End Date")
-    end_half = col_end.radio("End Time", [
-                            "Full Day ཉིན་ཆ་ཚང་།", "Morning ཞོགས་པ།", "Evening ཉིན་རྒྱབ།"], index=0, horizontal=True)
+    
+    if start_date == end_date:
+        if "Full Day" in start_half:
+            end_options = ["Full Day ཉིན་ཆ་ཚང་།"]
+        elif "Morning" in start_half:
+            end_options = ["Morning ཞོགས་པ།"]
+        elif "Evening" in start_half:
+            end_options = ["Evening ཉིན་རྒྱབ།"]
+        else:
+            end_options = ["Full Day ཉིན་ཆ་ཚང་།", "Morning ཞོགས་པ།", "Evening ཉིན་རྒྱབ།"]
+    else:
+        end_options = ["Full Day ཉིན་ཆ་ཚང་།", "Morning ཞོགས་པ།", "Evening ཉིན་རྒྱབ།"]
+        
+    # Generate a dynamic key based on the options so Streamlit doesn't crash when options shrink
+    dynamic_key = f"end_time_{len(end_options)}_{hash(tuple(end_options))}"
+    end_half = col_end.radio("End Time", end_options, index=0, horizontal=True, key=dynamic_key)
 
-    base_days = (end_date - start_date).days + 1
-    if base_days < 1:
-        base_days = 1
-    max_allowed = float(base_days)
-    min_allowed = max(0.5, float(base_days - 1.0))
+    if start_date > end_date:
+        calculated_days = 0.0
+    elif start_date == end_date:
+        if "Morning" in start_half or "Evening" in start_half:
+            calculated_days = 0.5
+        else:
+            calculated_days = 1.0
+    else:
+        base_days = (end_date - start_date).days + 1
+        calculated_days = float(base_days)
+        if "Evening" in start_half:
+            calculated_days -= 0.5
+        if "Morning" in end_half:
+            calculated_days -= 0.5
 
-    total_days = st.number_input("Total Days (to request or restore)",
-                                min_value=min_allowed, max_value=max_allowed, value=max_allowed, step=0.5)
+    st.text_input("Total Days (to request or restore) - Auto Calculated", value=f"{calculated_days}", disabled=True)
+    total_days = calculated_days
     final_days = -total_days if is_reversal else total_days
 
     st.write("---")
