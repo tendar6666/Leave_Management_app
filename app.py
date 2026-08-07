@@ -624,7 +624,7 @@ def employee_dashboard(hide_title=False):
         if "Morning" in end_half:
             calculated_days -= 0.5
 
-    st.text_input("Total Days (to request or restore) - Auto Calculated", value=f"{calculated_days}", disabled=True)
+    st.metric("Total Days (to request or restore)", f"{calculated_days}")
     total_days = calculated_days
     final_days = -total_days if is_reversal else total_days
 
