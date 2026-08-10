@@ -789,12 +789,12 @@ def leave_accounting_engine():
     st.divider()
     st.header("⚙️ Leave Accounting Engine")
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(
-        ["FY Rollover", "AL Encashment", "Add User", "Leave Statement", "Factory Reset"])
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["Add User", "Leave Statement", "AL Encashment", "FY Rollover"])
 
     staff_df = load_staff_master()
 
-    with tab1:
+    with tab4:
         def s_float(val):
             if pd.isnull(val):
                 return 0.0
@@ -967,7 +967,7 @@ def leave_accounting_engine():
                 except Exception as e:
                     st.error(f"Error during rollover: {e}")
 
-    with tab2:
+    with tab3:
         st.subheader("AL Encashment")
         if staff_df is not None and not staff_df.empty:
             encash_user = st.selectbox(
@@ -995,7 +995,7 @@ def leave_accounting_engine():
                         f"Successfully encashed {encash_days} AL days for {encash_user}.")
                     st.rerun()
 
-    with tab3:
+    with tab1:
         st.subheader("Add New User")
         with st.form("add_user_form"):
             new_name = st.text_input(
@@ -1048,7 +1048,7 @@ def leave_accounting_engine():
                         st.success(
                             f"User {new_name} added successfully with prorated balances!")
 
-    with tab4:
+    with tab2:
         st.subheader("Leave Statement Export")
         if staff_df is not None and not staff_df.empty:
             col1, col2 = st.columns(2)
@@ -1112,32 +1112,6 @@ def leave_accounting_engine():
                     key="dl_all",
                     type="primary"
                 )
-
-    with tab5:
-        st.subheader("Factory Reset (Wipe Dummy Data)")
-        st.error("⚠️ **DANGER:** This will completely wipe all leave balances, usage, and history for all employees. Everything will be reset to 0.")
-        if staff_df is not None and not staff_df.empty:
-            if st.button("🚨 WIPE ALL LEAVE DATA TO 0", type="primary"):
-                try:
-                    for idx, row in staff_df.iterrows():
-                        cols_to_zero = ["Opening_CL", "Addition_CL", "Used_CL", "Balance_CL",
-                                        "Opening_SL", "Addition_SL", "Used_SL", "Balance_SL",
-                                        "Opening_AL", "Addition_AL", "Used_AL", "Balance_AL", "Encashed_AL",
-                                        "Opening_UL", "Addition_UL", "Used_UL", "Balance_UL",
-                                        "Cumulative_UL", "Last_UL_Milestone", "Current Year Leave affecting Service Year", "Cummulative leave effecting Service year.(Education Leave & Etc).",
-                                        "Penalty_AL(UL Effect)", "Penalty_SL(UL Effect)", "Penalty_CL(UL Effect)",
-                                        "Service Year Penalty"]
-                        for col in cols_to_zero:
-                            staff_df.at[idx, col] = 0.0
-                    conn.update(worksheet="Staff_Master",
-                                data=inject_balance_formulas(staff_df))
-                    st.cache_data.clear()
-                    st.success(
-                        "Successfully wiped all data! Everything is exactly 0.")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Failed to factory reset: {e}")
-
 
 def render_calculate_service_year_button():
     if st.button("🔄 Calculate Actual Service Year", type="primary"):
@@ -1738,6 +1712,9 @@ def coadmin_dashboard():
 
     df_requests = load_leave_requests()
 
+    with st.expander("📅 Organizational Calendar", expanded=True):
+        render_organization_calendar()
+    
     st.subheader("Office Availability Overview")
     if not df_requests.empty:
         overview = df_requests[df_requests["Status"].isin(["Pending", "Approved"])]
