@@ -1428,8 +1428,8 @@ def render_organization_calendar():
             text_decor = "none"
         else:
             if is_reversal:
-                bg = "#9C27B0"
-                border = "1px solid #7B1FA2"
+                bg = "#F44336"  # Red for reversals
+                border = "1px solid #D32F2F"
             else:
                 bg = "#4CAF50"
                 border = "1px solid #388E3C"
