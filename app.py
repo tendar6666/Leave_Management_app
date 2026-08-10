@@ -1490,7 +1490,7 @@ def render_organization_calendar():
     
     html = []
     html.append(f'<div style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 20px; padding-bottom: 5px;">')
-    html.append(f'<div style="display: grid; grid-template-columns: repeat(7, minmax(120px, 1fr)); gap: 2px; background: #ddd; border: 1px solid #ddd;">')
+    html.append(f'<div style="display: grid; grid-template-columns: repeat(7, minmax(120px, 1fr)); gap: 2px; background: #ddd; border: 1px solid #ddd; min-width: max-content;">')
     
     days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
     for day in days:
