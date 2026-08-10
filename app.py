@@ -1565,7 +1565,7 @@ def admin_dashboard():
         render_user_management(is_admin=True)
         
     with tab1:
-        with st.expander("📅 View Organization Calendar", expanded=False):
+        with st.expander("📅 View Organization Calendar", expanded=True):
             render_organization_calendar()
         render_master_balance_table()
         st.divider()
@@ -1828,7 +1828,7 @@ def accounts_dashboard():
         render_user_management(is_admin=False)
         
     with tab1:
-        with st.expander("📅 View Organization Calendar", expanded=False):
+        with st.expander("📅 View Organization Calendar", expanded=True):
             render_organization_calendar()
         render_master_balance_table()
         st.divider()
