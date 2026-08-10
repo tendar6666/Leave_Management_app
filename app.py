@@ -1489,7 +1489,8 @@ def render_organization_calendar():
     start_offset = (first_weekday + 1) % 7
     
     html = []
-    html.append(f'<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; background: #ddd; border: 1px solid #ddd; margin-bottom: 20px;">')
+    html.append(f'<div style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 20px; padding-bottom: 5px;">')
+    html.append(f'<div style="display: grid; grid-template-columns: repeat(7, minmax(120px, 1fr)); gap: 2px; background: #ddd; border: 1px solid #ddd;">')
     
     days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
     for day in days:
@@ -1522,6 +1523,7 @@ def render_organization_calendar():
     for i in range(end_offset):
         html.append(f'<div style="background: #fafafa; min-height: 100px;"></div>')
         
+    html.append('</div>')
     html.append('</div>')
     st.markdown("\n".join(html), unsafe_allow_html=True)
 
