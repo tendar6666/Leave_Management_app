@@ -506,6 +506,7 @@ def login_screen():
 # --- DASHBOARDS ---
 def employee_dashboard(hide_title=False):
     if not hide_title:
+        render_active_leaves_banner(show_type=False)
         st.title("Employee Dashboard")
 
     balances = calculate_balances(st.session_state.user_name)
@@ -1528,7 +1529,7 @@ def render_organization_calendar():
     st.markdown("\n".join(html), unsafe_allow_html=True)
 
 
-def render_active_leaves_banner():
+def render_active_leaves_banner(show_type=True):
     import datetime
     df = load_leave_requests()
     if df is None or df.empty: return
@@ -1548,7 +1549,8 @@ def render_active_leaves_banner():
                 else:
                     half_str = f"({start_half} Start, {end_half} End)"
                 
-                active_leaves.append(f"🌴 **{row['Name']}** is currently on **{row['LeaveType']}** from {start} to {end} ({row['TotalDays']} days total) {half_str}")
+                type_str = f" **{row['LeaveType']}**" if show_type else " leave"
+            active_leaves.append(f"👤 **{row['Name']}** is currently on{type_str} from {start} to {end} ({row['TotalDays']} days total) {half_str}")
     
     if active_leaves:
         st.info("### 📅 Today's Active Leaves\n" + "\n".join([f"- {l}" for l in active_leaves]))
