@@ -1550,7 +1550,7 @@ def render_active_leaves_banner(show_type=True):
                     half_str = f"({start_half} Start, {end_half} End)"
                 
                 type_str = f" **{row['LeaveType']}**" if show_type else " leave"
-            active_leaves.append(f"👤 **{row['Name']}** is currently on{type_str} from {start} to {end} ({row['TotalDays']} days total) {half_str}")
+                active_leaves.append(f"👤 **{row['Name']}** is currently on{type_str} from {start} to {end} ({row['TotalDays']} days total) {half_str}")
     
     if active_leaves:
         st.info("### 📅 Today's Active Leaves\n" + "\n".join([f"- {l}" for l in active_leaves]))
