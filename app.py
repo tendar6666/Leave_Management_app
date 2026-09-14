@@ -1414,12 +1414,9 @@ def render_organization_calendar():
             next_m = curr.replace(month=curr.month+1)
             
         if next_m <= fy_end:
-            # float right
-            st.markdown('<div style="text-align: right;">', unsafe_allow_html=True)
             if st.button("Next Month ➡️", key="next_cal_btn"):
                 st.session_state.cal_date = next_m
                 st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.write("") # Spacer
             
