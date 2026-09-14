@@ -1385,7 +1385,7 @@ def render_organization_calendar():
             
     header_placeholder = st.empty()
     
-    col1, col2, col3 = header_placeholder.columns([1, 2, 1])
+    col1, col2, col3, col4 = header_placeholder.columns([1, 3, 1, 1.5])
     with col1:
         # Calculate prev month
         if curr.month == 1:
@@ -1574,7 +1574,7 @@ def render_organization_calendar():
     </html>
     """
     
-    with col3:
+    with col4:
         st.download_button(
             label="📄 Export to PDF / Web",
             data=full_html,
