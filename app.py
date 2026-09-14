@@ -1054,28 +1054,28 @@ def leave_accounting_engine():
                             f"User {new_name} added successfully with prorated balances!")
 
     st.divider()
-    st.subheader("Delete User")
-    with st.form("delete_user_form"):
-        user_to_delete = st.selectbox("Select User to Delete", staff_df["Name"].tolist())
-        confirm_delete = st.checkbox(f"I confirm I want to permanently delete this user")
-        if st.form_submit_button("Delete User", type="primary"):
-            if not confirm_delete:
-                st.error("Please check the confirmation box to delete.")
-            else:
-                users_df = load_users_data()
-                if user_to_delete in users_df["Name"].values:
-                    # Remove from Users
-                    users_df = users_df[users_df["Name"] != user_to_delete]
-                    conn.update(worksheet="Users", data=users_df)
-                    
-                    # Remove from Staff_Master
-                    staff_df = staff_df[staff_df["Name"] != user_to_delete]
-                    conn.update(worksheet="Staff_Master", data=staff_df)
-                    
-                    st.cache_data.clear()
-                    st.success(f"User {user_to_delete} has been completely removed from the system.")
+    with st.expander("⚠️ Danger Zone: Delete User", expanded=False):
+        with st.form("delete_user_form"):
+            user_to_delete = st.selectbox("Select User to Delete", staff_df["Name"].tolist())
+            confirm_delete = st.checkbox(f"I confirm I want to permanently delete this user")
+            if st.form_submit_button("Delete User", type="primary"):
+                if not confirm_delete:
+                    st.error("Please check the confirmation box to delete.")
                 else:
-                    st.error("User not found!")
+                    users_df = load_users_data()
+                    if user_to_delete in users_df["Name"].values:
+                        # Remove from Users
+                        users_df = users_df[users_df["Name"] != user_to_delete]
+                        conn.update(worksheet="Users", data=users_df)
+                        
+                        # Remove from Staff_Master
+                        staff_df = staff_df[staff_df["Name"] != user_to_delete]
+                        conn.update(worksheet="Staff_Master", data=staff_df)
+                        
+                        st.cache_data.clear()
+                        st.success(f"User {user_to_delete} has been completely removed from the system.")
+                    else:
+                        st.error("User not found!")
 
     with tab2:
         st.subheader("Leave Statement Export")
