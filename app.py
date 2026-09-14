@@ -1383,7 +1383,9 @@ def render_organization_calendar():
             
     curr = st.session_state.cal_date
             
-    col1, col2, col3 = st.columns([1, 2, 1])
+    header_placeholder = st.empty()
+    
+    col1, col2, col3 = header_placeholder.columns([1, 2, 1])
     with col1:
         # Calculate prev month
         if curr.month == 1:
@@ -1554,6 +1556,33 @@ def render_organization_calendar():
         
     html.append('</div>')
     html.append('</div>')
+    
+    full_html = f"""
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Leave Calendar - {calendar.month_name[month]} {year}</title>
+        <style>
+            body {{ font-family: sans-serif; padding: 20px; }}
+        </style>
+    </head>
+    <body>
+        <h2 style="text-align: center; color: #333;">Organization Leave Calendar: {calendar.month_name[month]} {year}</h2>
+        {"\n".join(html)}
+    </body>
+    </html>
+    """
+    
+    with col3:
+        st.download_button(
+            label="📄 Export to PDF / Web",
+            data=full_html,
+            file_name=f"Leave_Calendar_{year}_{month}.html",
+            mime="text/html",
+            key="export_cal_btn"
+        )
+        
     st.markdown("\n".join(html), unsafe_allow_html=True)
 
 
