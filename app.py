@@ -1359,7 +1359,10 @@ def render_user_management(is_admin):
 
 
 def render_organization_calendar():
-    st.subheader("📅 Organization Leave Calendar", anchor="org-calendar")
+    hdr_col, export_col = st.columns([4, 1])
+    with hdr_col:
+        st.subheader("📅 Organization Leave Calendar", anchor="org-calendar")
+    export_placeholder = export_col.empty()
     
     # Fetch Financial Year Bounds
     try:
@@ -1385,7 +1388,7 @@ def render_organization_calendar():
             
     header_placeholder = st.empty()
     
-    col1, col2, col3, col4 = header_placeholder.columns([1, 3, 1, 1.5])
+    col1, col2, col3 = header_placeholder.columns([1, 2, 1])
     with col1:
         # Calculate prev month
         if curr.month == 1:
@@ -1574,7 +1577,7 @@ def render_organization_calendar():
     </html>
     """
     
-    with col4:
+    with export_placeholder:
         st.download_button(
             label="📄 Export to PDF / Web",
             data=full_html,
