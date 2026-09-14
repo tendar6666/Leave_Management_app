@@ -584,7 +584,7 @@ def employee_dashboard(hide_title=False):
 
     department = st.text_input("Department (ལས་ཁུངས་དང་སྡེ་ཚན།)")
     selected_coadmin = st.selectbox(
-        "Select Co-Admin for Support", ["None"] + co_admins)
+        "Select Co-Admin for Support", ["--- Select ---", "Not-Applicable"] + co_admins)
 
     application_date = st.date_input("Application Date", datetime.today())
 
@@ -662,6 +662,10 @@ def employee_dashboard(hide_title=False):
         with st.spinner('Processing... Please wait and do not click again.'):
             if total_days <= 0:
                 st.error("Total days must be greater than 0.")
+            elif not department.strip():
+                st.error("Department cannot be blank.")
+            elif selected_coadmin == "--- Select ---":
+                st.error("Please select a Co-Admin or choose 'Not-Applicable'.")
             elif start_date > end_date:
                 st.error("End Date must be after or equal to Start Date.")
             elif start_date != end_date and total_days < 1:
@@ -700,7 +704,7 @@ def employee_dashboard(hide_title=False):
                     conn.update(worksheet="LeaveRequests", data=updated_df)
                     st.cache_data.clear()
                     st.success("Request submitted successfully!")
-                    if selected_coadmin and selected_coadmin != "None":
+                    if selected_coadmin and selected_coadmin not in ["None", "--- Select ---", "Not-Applicable"]:
                         admin_msg = f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type}. (Co-Admin: {selected_coadmin}). Pending approval!"
                     else:
                         admin_msg = f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type}. Pending approval!"
@@ -710,7 +714,7 @@ def employee_dashboard(hide_title=False):
                         "New Leave Request 🚨", 
                         admin_msg
                     )
-                    if selected_coadmin and selected_coadmin != "None":
+                    if selected_coadmin and selected_coadmin not in ["None", "--- Select ---", "Not-Applicable"]:
                         send_ntfy_notification(
                             NTFY_COADMIN_TOPIC,
                             "Leave Support Requested 🤝",
