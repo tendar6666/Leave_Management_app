@@ -1482,19 +1482,19 @@ def render_organization_calendar():
                 if curr_d == start_d and "Morning" in sh:
                     is_half = True
                     align = "left"
-                    grad = f"background: repeating-linear-gradient(-45deg, {bg}, {bg} 10px, rgba(255,255,255,0.6) 10px, rgba(255,255,255,0.6) 20px); border-left: {border};"
+                    grad = f"background: linear-gradient(to right, {bg} 50%, transparent 50%); border-left: {border};"
                 elif curr_d == start_d and "Evening" in sh:
                     is_half = True
                     align = "right"
-                    grad = f"background: repeating-linear-gradient(45deg, {bg}, {bg} 10px, rgba(255,255,255,0.6) 10px, rgba(255,255,255,0.6) 20px); border-right: {border};"
+                    grad = f"background: linear-gradient(to left, {bg} 50%, transparent 50%); border-right: {border};"
                 elif curr_d == end_d and "Morning" in eh:
                     is_half = True
                     align = "left"
-                    grad = f"background: repeating-linear-gradient(-45deg, {bg}, {bg} 10px, rgba(255,255,255,0.6) 10px, rgba(255,255,255,0.6) 20px); border-left: {border};"
+                    grad = f"background: linear-gradient(to right, {bg} 50%, transparent 50%); border-left: {border};"
                 elif curr_d == end_d and "Evening" in eh:
                     is_half = True
                     align = "right"
-                    grad = f"background: repeating-linear-gradient(45deg, {bg}, {bg} 10px, rgba(255,255,255,0.6) 10px, rgba(255,255,255,0.6) 20px); border-right: {border};"
+                    grad = f"background: linear-gradient(to left, {bg} 50%, transparent 50%); border-right: {border};"
                 
                 event_txt = f"{name} - {display_type}"
                 if is_half:
