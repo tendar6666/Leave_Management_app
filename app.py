@@ -124,6 +124,13 @@ def inject_balance_formulas(df):
 
 
 @st.cache_data(ttl=60)
+def load_financial_year():
+    try:
+        return conn.read(worksheet="FinancialYear")
+    except Exception as e:
+        return None
+
+@st.cache_data(ttl=60)
 def load_leave_requests():
     try:
         df = conn.read(worksheet="LeaveRequests")
@@ -1268,7 +1275,7 @@ def render_financial_year_settings():
     import streamlit as st
     st.subheader("📅 Financial Year Settings")
     try:
-        fy_df = conn.read(worksheet="FinancialYear")
+        fy_df = load_financial_year()
         if fy_df is not None and not fy_df.empty:
             current_start = str(fy_df.iloc[0].get("Start Date", ""))
             current_end = str(fy_df.iloc[0].get("End Date", ""))
@@ -1366,7 +1373,7 @@ def render_organization_calendar():
     
     # Fetch Financial Year Bounds
     try:
-        fy_df = conn.read(worksheet="FinancialYear", ttl=0)
+        fy_df = load_financial_year()
         fy_start_str = str(fy_df.iloc[0].get("Start Date", "")).strip()
         fy_end_str = str(fy_df.iloc[0].get("End Date", "")).strip()
         fy_start = datetime.strptime(fy_start_str, "%Y-%m-%d").date().replace(day=1)
