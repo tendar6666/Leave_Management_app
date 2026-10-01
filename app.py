@@ -1952,7 +1952,7 @@ def accounts_dashboard():
                     is_punched = str(row.get('AccountsPunched', 'No')).strip().lower() in ['yes', 'punched']
                     if is_punched:
                         col4.success("✅ Punched")
-                    elif raw_status not in ["Cancelled", "Rejected"]:
+                    elif raw_status == "Approved":
                         if col4.button("Punch in Register", key=f"punch_acc_all_{row['ID']}", type="primary"):
                             df_requests.at[idx, "AccountsPunched"] = "Punched"
                             df_requests.at[idx, "PunchedBy"] = st.session_state.user_name
@@ -1964,6 +1964,8 @@ def accounts_dashboard():
                                 f"Accountant {st.session_state.user_name} punched in {row['TotalDays']} day(s) of leave for {row['Name']}."
                             )
                             st.rerun()
+                    elif raw_status not in ["Cancelled", "Rejected"]:
+                        col4.button("Punch Pending", key=f"punch_pend_all_{row['ID']}", disabled=True, help="Punch in register will be available after Admin approves the leave.")
             st.divider()
             p_col1, p_col2, p_col3 = st.columns([1, 2, 1])
             with p_col1:
