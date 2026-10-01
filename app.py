@@ -711,26 +711,29 @@ def employee_dashboard(hide_title=False):
                     conn.update(worksheet="LeaveRequests", data=updated_df)
                     st.cache_data.clear()
                     st.success("Request submitted successfully!")
+                    action_word = "requested to RESTORE" if is_reversal else "requested"
+                    req_title = "Leave Reversal Request 🔄" if is_reversal else "New Leave Request 📅"
+                    
                     if selected_coadmin and selected_coadmin not in ["None", "--- Select ---", "Not-Applicable"]:
-                        admin_msg = f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type}. (Co-Admin: {selected_coadmin}). Pending approval!"
+                        admin_msg = f"{st.session_state.user_name} {action_word} {total_days} day(s) of {leave_type}. (Co-Admin: {selected_coadmin}). Pending approval!"
                     else:
-                        admin_msg = f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type}. Pending approval!"
+                        admin_msg = f"{st.session_state.user_name} {action_word} {total_days} day(s) of {leave_type}. Pending approval!"
 
                     send_ntfy_notification(
-                        NTFY_ADMIN_TOPIC, 
-                        "New Leave Request 🚨", 
+                        NTFY_ADMIN_TOPIC,
+                        req_title,
                         admin_msg
                     )
                     if selected_coadmin and selected_coadmin not in ["None", "--- Select ---", "Not-Applicable"]:
                         send_ntfy_notification(
                             NTFY_COADMIN_TOPIC,
-                            "Leave Support Requested 🤝",
-                            f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type} and selected {selected_coadmin} as Co-Admin."
+                            "Leave Reversal Support 🔄" if is_reversal else "Leave Support Requested 🤝",
+                            f"{st.session_state.user_name} {action_word} {total_days} day(s) of {leave_type} and selected {selected_coadmin} as Co-Admin."
                         )
                     send_ntfy_notification(
                         NTFY_ACCOUNT_TOPIC,
-                        "New Leave Request ℹ️",
-                        f"{st.session_state.user_name} requested {total_days} day(s) of {leave_type}. (FYI - Pending Approval)"
+                        req_title,
+                        f"{st.session_state.user_name} {action_word} {total_days} day(s) of {leave_type}. (FYI - Pending Approval)"
                     )
                     st.rerun()
                 except Exception as e:
@@ -1922,31 +1925,45 @@ def accounts_dashboard():
             current_page_df = all_leaves.iloc[start_idx:end_idx]
             
             for idx, row in current_page_df.iterrows():
-                col1, col2, col3 = st.columns([4, 1, 1])
-                
-                raw_status = str(row.get('Status', '')).strip()
-                co_admin_name = str(row.get('SelectedCoAdmin', '')).strip()
-                co_status_raw = str(row.get('CoAdminAcknowledged', '')).strip().lower()
-                
-                if raw_status == "Pending":
-                    if co_admin_name and co_admin_name.lower() not in ['none', 'nan', '']:
-                        if co_status_raw == "supported":
-                            display_status = f"Supported by Co-Admin ({co_admin_name}) and Pending from Admin"
-                        else:
-                            display_status = f"Pending from Co-Admin ({co_admin_name}) and Admin"
-                    else:
-                        display_status = "Pending from Admin"
-                else:
-                    display_status = raw_status
+                    col1, col2, col3, col4 = st.columns([4.5, 1, 1, 2])
 
-                col1.write(f"**{row['Name']}** - {row['LeaveType']} ({row['StartDate']} to {row['EndDate']}) - Status: {display_status}")
-                
-                if raw_status == "Approved":
+                    raw_status = str(row.get('Status', '')).strip()
+                    co_admin_name = str(row.get('SelectedCoAdmin', '')).strip()
+                    co_status_raw = str(row.get('CoAdminAcknowledged', '')).strip().lower()
+
+                    if raw_status == "Pending":
+                        if co_admin_name and co_admin_name.lower() not in ['none', 'nan', '']:
+                            if co_status_raw == "supported":
+                                display_status = f"Supported by Co-Admin ({co_admin_name}) and Pending from Admin"
+                            else:
+                                display_status = f"Pending from Co-Admin ({co_admin_name}) and Admin"
+                        else:
+                            display_status = "Pending from Admin"
+                    else:
+                        display_status = raw_status
+
+                    col1.write(f"**{row['Name']}** - {row['LeaveType']} ({row['StartDate']} to {row['EndDate']}) - Status: {display_status}")
+
                     pdf_bytes = generate_leave_pdf(row)
-                    if col2.button("👁️ Preview", key=f"prev_acc_all_{row['ID']}"):
+                    if col2.button(" Preview", key=f"prev_acc_all_{row['ID']}"):
                         open_pdf_dialog(pdf_bytes, f"{row['Name']}_{row['StartDate']}_Leave.pdf")
-                    col3.download_button("📄 PDF", data=pdf_bytes, file_name=f"{row['Name']}_{row['StartDate']}_Leave.pdf", mime="application/pdf", key=f"dl_acc_{row['ID']}")
+                    col3.download_button(" PDF", data=pdf_bytes, file_name=f"{row['Name']}_{row['StartDate']}_Leave.pdf", mime="application/pdf", key=f"dl_acc_{row['ID']}")
                     
+                    is_punched = str(row.get('AccountsPunched', 'No')).strip().lower() in ['yes', 'punched']
+                    if is_punched:
+                        col4.success("✅ Punched")
+                    elif raw_status not in ["Cancelled", "Rejected"]:
+                        if col4.button("Punch in Register", key=f"punch_acc_all_{row['ID']}", type="primary"):
+                            df_requests.at[idx, "AccountsPunched"] = "Punched"
+                            df_requests.at[idx, "PunchedBy"] = st.session_state.user_name
+                            conn.update(worksheet="LeaveRequests", data=df_requests)
+                            st.cache_data.clear()
+                            send_ntfy_notification(
+                                NTFY_ADMIN_TOPIC,
+                                "Leave Punched in Register 📇",
+                                f"Accountant {st.session_state.user_name} punched in {row['TotalDays']} day(s) of leave for {row['Name']}."
+                            )
+                            st.rerun()
             st.divider()
             p_col1, p_col2, p_col3 = st.columns([1, 2, 1])
             with p_col1:
