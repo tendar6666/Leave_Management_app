@@ -1108,10 +1108,55 @@ def leave_accounting_engine():
                 stmt_df = pd.DataFrame(data)
                 import io
                 buffer_single = io.BytesIO()
-                with pd.ExcelWriter(buffer_single, engine='openpyxl') as writer:
-                    stmt_df.to_excel(writer, index=False,
-                                    sheet_name='Leave Statement')
-
+                
+                req_df = load_leave_requests()
+                past_leaves = req_df[req_df["Name"] == export_user] if not req_df.empty else pd.DataFrame()
+                
+                from openpyxl import Workbook
+                
+                wb = Workbook()
+                ws = wb.active
+                ws.title = "Leave Statement"
+                
+                bold_font = Font(bold=True)
+                
+                ws.append([f"Leave Status of {export_user}"])
+                ws.cell(row=1, column=1).font = bold_font
+                
+                headers_1 = ["Leave Type", "Opening Balance", "Addition", "Used", "Closing Balance"]
+                ws.append(headers_1)
+                
+                for index, r in stmt_df.iterrows():
+                    ws.append(r.tolist())
+                    
+                        
+                ws.append([])
+                ws.append([])
+                
+                start_row = 9
+                ws.append([f"Past Leave History of {export_user}"])
+                ws.cell(row=start_row, column=1).font = bold_font
+                
+                headers_2 = ["StartDate", "StartHalf", "EndDate", "EndHalf", "TotalDays", "Status", "CLBalance", "ALBalance", "SLBalance", "ULBalance"]
+                ws.append(headers_2)
+                
+                
+                if not past_leaves.empty:
+                    for _, r in past_leaves.iterrows():
+                        ws.append([
+                            r.get("StartDate", ""),
+                            r.get("StartHalf", ""),
+                            r.get("EndDate", ""),
+                                r.get("EndHalf", ""),
+                                r.get("TotalDays", ""),
+                                r.get("Status", ""),
+                                r.get("CLBalance", ""),
+                                r.get("ALBalance", ""),
+                                r.get("SLBalance", ""),
+                                r.get("ULBalance", "")
+                            ])
+                            
+                    wb.save(buffer_single)
                 st.download_button(
                     label=f"⬇️ Download {export_user} Statement",
                     data=buffer_single.getvalue(),
