@@ -1092,81 +1092,76 @@ def leave_accounting_engine():
         if staff_df is not None and not staff_df.empty:
             col1, col2 = st.columns(2)
 
-            with col1:
-                st.markdown("**Single Employee Statement**")
-                export_user = st.selectbox(
-                    "Select Employee", staff_df["Name"].tolist(), key="exp_user")
-
-                user_record = staff_df[staff_df["Name"] == export_user].iloc[0]
-                data = {
-                    "Leave Type": ["Casual Leave (CL)", "Sick Leave (SL)", "Annual Leave (AL)", "Unpaid Leave (UL)"],
-                    "Opening Balance": [user_record.get("Opening_CL", 0), user_record.get("Opening_SL", 0), user_record.get("Opening_AL", 0), user_record.get("Opening_UL", 0)],
-                    "Addition": [user_record.get("Addition_CL", 0), user_record.get("Addition_SL", 0), user_record.get("Addition_AL", 0), user_record.get("Addition_UL", 0)],
-                    "Used": [user_record.get("Used_CL", 0), user_record.get("Used_SL", 0), user_record.get("Used_AL", 0), user_record.get("Used_UL", 0)],
-                    "Closing Balance": [user_record.get("Balance_CL", 0), user_record.get("Balance_SL", 0), user_record.get("Balance_AL", 0), user_record.get("Balance_UL", 0)]
-                }
-                stmt_df = pd.DataFrame(data)
-                import io
-                buffer_single = io.BytesIO()
+        with col1:
+            st.markdown("**Single Employee Statement**")
+            export_user = st.selectbox(
+                "Select Employee", staff_df["Name"].tolist(), key="exp_user")
                 
-                req_df = load_leave_requests()
-                past_leaves = req_df[req_df["Name"] == export_user] if not req_df.empty else pd.DataFrame()
-                
-                from openpyxl import Workbook
-                from openpyxl.styles import Font
-                
-                wb = Workbook()
-                ws = wb.active
-                ws.title = "Leave Statement"
-                
-                bold_font = Font(bold=True)
-                
-                ws.append([f"Leave Status of {export_user}"])
-                ws.cell(row=1, column=1).font = bold_font
-                
-                headers_1 = ["Leave Type", "Opening Balance", "Addition", "Used", "Closing Balance"]
-                ws.append(headers_1)
-                
-                for index, r in stmt_df.iterrows():
-                    ws.append(r.tolist())
-                    
-                        
-                ws.append([])
-                ws.append([])
-                
-                start_row = 9
-                ws.append([f"Past Leave History of {export_user}"])
-                ws.cell(row=start_row, column=1).font = bold_font
-                
-                headers_2 = ["StartDate", "StartHalf", "EndDate", "EndHalf", "TotalDays", "Status", "CLBalance", "ALBalance", "SLBalance", "ULBalance"]
-                ws.append(headers_2)
-                
-                
-                if not past_leaves.empty:
-                    for _, r in past_leaves.iterrows():
-                        ws.append([
-                            r.get("StartDate", ""),
-                            r.get("StartHalf", ""),
-                            r.get("EndDate", ""),
-                                r.get("EndHalf", ""),
-                                r.get("TotalDays", ""),
-                                r.get("Status", ""),
-                                r.get("CLBalance", ""),
-                                r.get("ALBalance", ""),
-                                r.get("SLBalance", ""),
-                                r.get("ULBalance", "")
-                            ])
-                            
-                    wb.save(buffer_single)
-                st.download_button(
-                    label=f"⬇️ Download {export_user} Statement",
-                    data=buffer_single.getvalue(),
-                    file_name=f"{export_user}_Leave_Statement.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key="dl_single"
-                )
-
-            with col2:
+            if "prev_exp_user" not in st.session_state:
+                st.session_state.prev_exp_user = export_user
+            
+            if export_user != st.session_state.prev_exp_user:
+                import time
+                with st.spinner(f"Compiling {export_user} data..."):
+                    time.sleep(1.0) # Intentional frontend freeze
+                st.session_state.prev_exp_user = export_user
+            user_record = staff_df[staff_df["Name"] == export_user].iloc[0]
+            data = {
+                "Leave Type": ["Casual Leave (CL)", "Sick Leave (SL)", "Annual Leave (AL)", "Unpaid Leave (UL)"],
+                "Opening Balance": [user_record.get("Opening_CL", 0), user_record.get("Opening_SL", 0), user_record.get("Opening_AL", 0), user_record.get("Opening_UL", 0)],
+                "Addition": [user_record.get("Addition_CL", 0), user_record.get("Addition_SL", 0), user_record.get("Addition_AL", 0), user_record.get("Addition_UL", 0)],
+                "Used": [user_record.get("Used_CL", 0), user_record.get("Used_SL", 0), user_record.get("Used_AL", 0), user_record.get("Used_UL", 0)],
+                "Closing Balance": [user_record.get("Balance_CL", 0), user_record.get("Balance_SL", 0), user_record.get("Balance_AL", 0), user_record.get("Balance_UL", 0)]
+            }
+            stmt_df = pd.DataFrame(data)
+            import io
+            buffer_single = io.BytesIO()
+            req_df = load_leave_requests()
+            past_leaves = req_df[req_df["Name"] == export_user] if not req_df.empty else pd.DataFrame()
+            from openpyxl import Workbook
+            from openpyxl.styles import Font
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Leave Statement"
+            bold_font = Font(bold=True)
+            ws.append([f"Leave Status of {export_user}"])
+            ws.cell(row=1, column=1).font = bold_font
+            headers_1 = ["Leave Type", "Opening Balance", "Addition", "Used", "Closing Balance"]
+            ws.append(headers_1)
+            for index, r in stmt_df.iterrows():
+                ws.append(r.tolist())
+            ws.append([])
+            ws.append([])
+            start_row = 9
+            ws.append([f"Past Leave History of {export_user}"])
+            ws.cell(row=start_row, column=1).font = bold_font
+            headers_2 = ["StartDate", "StartHalf", "EndDate", "EndHalf", "Application date", "Leave Type", "TotalDays", "Status", "CLBalance", "ALBalance", "SLBalance", "ULBalance"]
+            ws.append(headers_2)
+            if not past_leaves.empty:
+                for _, r in past_leaves.iterrows():
+                    ws.append([
+                        r.get("StartDate", ""),
+                        r.get("StartHalf", ""),
+                        r.get("EndDate", ""),
+                        r.get("EndHalf", ""),
+                        r.get("ApplicationDate", ""),
+                        r.get("LeaveType", ""),
+                        r.get("TotalDays", ""),
+                        r.get("Status", ""),
+                        r.get("CLBalance", ""),
+                        r.get("ALBalance", ""),
+                        r.get("SLBalance", ""),
+                        r.get("ULBalance", "")
+                    ])
+            wb.save(buffer_single)
+            st.download_button(
+                label=f" Download {export_user} Statement",
+                data=buffer_single.getvalue(),
+                file_name=f"{export_user}_Leave_Statement.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="dl_single"
+            )
+        with col2:
                 st.markdown("**All Employees Statement**")
                 st.write(
                     "Generates a single master Excel table containing all employees and their complete leave balances.")
