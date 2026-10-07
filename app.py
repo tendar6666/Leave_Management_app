@@ -1113,6 +1113,7 @@ def leave_accounting_engine():
                 past_leaves = req_df[req_df["Name"] == export_user] if not req_df.empty else pd.DataFrame()
                 
                 from openpyxl import Workbook
+                from openpyxl.styles import Font
                 
                 wb = Workbook()
                 ws = wb.active
