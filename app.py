@@ -636,6 +636,11 @@ def employee_dashboard(hide_title=False):
     total_days = calculated_days
     final_days = -total_days if is_reversal else total_days
 
+    if not is_reversal and leave_type in ["CL", "AL", "UL"] and total_days > balances.get(leave_type, 0.0):
+        st.warning(
+            f"⚠️ Requested {leave_type} ({total_days} day(s)) exceeds your available {leave_type} balance ({balances.get(leave_type, 0.0)} day(s))."
+        )
+
     st.write("---")
     col_sub, col_prev = st.columns(2)
 
@@ -669,6 +674,9 @@ def employee_dashboard(hide_title=False):
         with st.spinner('Processing... Please wait and do not click again.'):
             if total_days <= 0:
                 st.error("Total days must be greater than 0.")
+            elif not is_reversal and leave_type in ["CL", "AL", "UL"] and total_days > balances.get(leave_type, 0.0):
+                st.error(
+                    f"Cannot apply beyond your available {leave_type} balance! Requested: {total_days} day(s), Available Balance: {balances.get(leave_type, 0.0)} day(s).")
             elif not department.strip():
                 st.error("Department cannot be blank.")
             elif selected_coadmin == "--- Select ---":
