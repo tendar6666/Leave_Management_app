@@ -511,6 +511,236 @@ def login_screen():
 
 
 # --- DASHBOARDS ---
+def validate_leave_request_rules(user_name, leave_type, start_date, start_half, end_date, end_half, total_days, is_reversal, balances, df_requests):
+    """
+    Returns (hard_error_msg, soft_alerts_list):
+      - hard_error_msg: str or None (Strict Hard Blocks — CANNOT be bypassed)
+      - soft_alerts_list: list of str (Weekend-bridged Policy Alerts — shown as warning, user can Force Apply if Saturday/Sunday was a working day)
+    """
+    if is_reversal or total_days <= 0 or start_date > end_date:
+        return None, []
+
+    soft_alerts = []
+
+    # 1. Strict Balance Check for CL, AL, UL (Hard Block)
+    if leave_type in ["CL", "AL", "UL"]:
+        avail_bal = float(balances.get(leave_type, 0.0))
+        pending_days = 0.0
+        if df_requests is not None and not df_requests.empty and "Name" in df_requests.columns:
+            user_pending = df_requests[
+                (df_requests["Name"] == user_name) &
+                (df_requests["Status"].astype(str).str.strip() == "Pending") &
+                (df_requests["LeaveType"].astype(str).str.strip() == leave_type)
+            ]
+            for _, r in user_pending.iterrows():
+                try:
+                    d_val = float(r.get("TotalDays", 0.0))
+                    if d_val > 0:
+                        pending_days += d_val
+                except Exception:
+                    pass
+        if total_days > avail_bal:
+            return (
+                f"Cannot apply beyond your available {leave_type} balance! Requested: {total_days} day(s), Available Balance: {avail_bal} day(s).",
+                []
+            )
+        if total_days + pending_days > avail_bal:
+            rem_bal = max(0.0, avail_bal - pending_days)
+            return (
+                f"Cannot apply beyond your available {leave_type} balance! Available: {avail_bal} day(s), Pending Approval: {pending_days} day(s) (Remaining: {rem_bal} day(s)), Requested: {total_days} day(s).",
+                []
+            )
+
+    # 2. Single CL request > 5 consecutive days (Hard Block)
+    if leave_type == "CL" and total_days > 5.0:
+        return (
+            f"Rule Violation: Casual Leave (CL) cannot exceed 5 consecutive days! You selected {total_days} day(s).",
+            []
+        )
+
+    # 3. Half-day slot timeline & CTA working half-day check (1st Saturday Morning is a working half-day)
+    def get_slot_bounds(s_date, s_half, e_date, e_half):
+        s_slot = 2 * s_date.toordinal() + (1 if "Evening" in str(s_half) else 0)
+        e_slot = 2 * e_date.toordinal() + (0 if "Morning" in str(e_half) else 1)
+        return s_slot, e_slot
+
+    def is_working_half_day(s):
+        d = datetime.fromordinal(s // 2).date()
+        is_morning = (s % 2 == 0)
+        # Monday (0) to Friday (4): both Morning and Evening are working half-days
+        if d.weekday() in (0, 1, 2, 3, 4):
+            return True
+        # First Saturday of the month (weekday == 5 and day <= 7): Morning is a half working day
+        if d.weekday() == 5 and d.day <= 7 and is_morning:
+            return True
+        return False
+
+    def are_slots_continuous(end_slot_1, start_slot_2):
+        # Continuous if there are 0 working half-days strictly between end_slot_1 and start_slot_2
+        if start_slot_2 <= end_slot_1:
+            return True
+        for s in range(end_slot_1 + 1, start_slot_2):
+            if is_working_half_day(s):
+                return False
+        return True
+
+    new_s_slot, new_e_slot = get_slot_bounds(start_date, start_half, end_date, end_half)
+
+    active_slots = {}
+    if df_requests is not None and not df_requests.empty and "Name" in df_requests.columns:
+        user_reqs = df_requests[
+            (df_requests["Name"] == user_name) &
+            (df_requests["Status"].astype(str).str.strip().isin(["Pending", "Approved"]))
+        ]
+        for _, r in user_reqs.iterrows():
+            try:
+                r_start = datetime.strptime(str(r.get("StartDate", "")).strip()[:10], "%Y-%m-%d").date()
+                r_end = datetime.strptime(str(r.get("EndDate", "")).strip()[:10], "%Y-%m-%d").date()
+            except Exception:
+                continue
+            r_sh = str(r.get("StartHalf", "Full Day"))
+            r_eh = str(r.get("EndHalf", "Full Day"))
+            r_s_slot, r_e_slot = get_slot_bounds(r_start, r_sh, r_end, r_eh)
+            r_type = str(r.get("LeaveType", "")).strip()
+            r_status = str(r.get("Status", "")).strip()
+            try:
+                r_days = float(r.get("TotalDays", 0.0))
+            except Exception:
+                r_days = 0.0
+
+            if r_type.startswith("Return-") or r_type.startswith("Rev-") or r_days < 0:
+                for s in range(r_s_slot, r_e_slot + 1):
+                    active_slots.pop(s, None)
+            else:
+                for s in range(r_s_slot, r_e_slot + 1):
+                    active_slots[s] = (r_type, r_status, f"{r_start} to {r_end}")
+
+    # 3a. Check Overlap (Hard Block)
+    for s in range(new_s_slot, new_e_slot + 1):
+        if s in active_slots:
+            ex_type, ex_status, ex_dates = active_slots[s]
+            return (
+                f"Overlapping leave! You already have a {ex_status} {ex_type} request ({ex_dates}) on the selected date/half-day.",
+                []
+            )
+
+    # Group active_slots into contiguous same-type segments
+    segments = []
+    for s in sorted(active_slots.keys()):
+        r_type, r_status, r_dates = active_slots[s]
+        if segments and segments[-1]["e_slot"] + 1 == s and segments[-1]["type"] == r_type:
+            segments[-1]["e_slot"] = s
+        else:
+            segments.append({
+                "s_slot": s,
+                "e_slot": s,
+                "type": r_type,
+                "status": r_status,
+                "dates": r_dates
+            })
+
+    # 3b. Adjacency / Continuity between different types in {"CL", "AL", "UL"}
+    # - Direct back-to-back (0 slots in between) -> Strict Hard Block
+    # - Weekend-bridged (only non-working weekend slots in between) -> Policy Alert (Force Apply allowed if weekend had a working day)
+    restricted_types = {"CL", "AL", "UL"}
+    if leave_type in restricted_types:
+        for seg in segments:
+            if seg["type"] in restricted_types and seg["type"] != leave_type:
+                if seg["e_slot"] < new_s_slot and are_slots_continuous(seg["e_slot"], new_s_slot):
+                    if new_s_slot == seg["e_slot"] + 1:
+                        return (
+                            f"Rule Violation: {leave_type} cannot be applied directly after {seg['type']} ({seg['dates']}, {seg['status']}) "
+                            f"without at least a half working day in between.",
+                            []
+                        )
+                    else:
+                        soft_alerts.append(
+                            f"Combination Across Weekend Alert: {leave_type} cannot be applied continuously after {seg['type']} ({seg['dates']}, {seg['status']}) "
+                            f"across a non-working weekend (unless there was a special/regional working day in between)."
+                        )
+                if new_e_slot < seg["s_slot"] and are_slots_continuous(new_e_slot, seg["s_slot"]):
+                    if seg["s_slot"] == new_e_slot + 1:
+                        return (
+                            f"Rule Violation: {leave_type} cannot be applied directly before {seg['type']} ({seg['dates']}, {seg['status']}) "
+                            f"without at least a half working day in between.",
+                            []
+                        )
+                    else:
+                        soft_alerts.append(
+                            f"Combination Across Weekend Alert: {leave_type} cannot be applied continuously before {seg['type']} ({seg['dates']}, {seg['status']}) "
+                            f"across a non-working weekend (unless there was a special/regional working day in between)."
+                        )
+
+    # 3c. Split Back-to-Back CL Requests > 5 Consecutive Days & Weekend Sandwich Rule
+    if leave_type == "CL":
+        cl_segments = [
+            {
+                "s_slot": seg["s_slot"],
+                "e_slot": seg["e_slot"],
+                "days": 0.5 * (seg["e_slot"] - seg["s_slot"] + 1),
+                "is_new": False
+            }
+            for seg in segments if seg["type"] == "CL"
+        ]
+        cl_segments.append({
+            "s_slot": new_s_slot,
+            "e_slot": new_e_slot,
+            "days": float(total_days),
+            "is_new": True
+        })
+        cl_segments.sort(key=lambda x: x["s_slot"])
+
+        # First check strictly adjacent (no weekend gap) CL chain > 5 days -> Hard Block
+        direct_cl = []
+        for seg in cl_segments:
+            if direct_cl and seg["s_slot"] == direct_cl[-1]["e_slot"] + 1:
+                direct_cl[-1]["e_slot"] = seg["e_slot"]
+                direct_cl[-1]["days"] += seg["days"]
+                direct_cl[-1]["has_new"] = direct_cl[-1]["has_new"] or seg["is_new"]
+            else:
+                direct_cl.append(dict(seg, has_new=seg["is_new"]))
+
+        for chain in direct_cl:
+            if chain["has_new"] and chain["days"] > 5.0:
+                return (
+                    f"Rule Violation: Casual Leave (CL) cannot exceed 5 consecutive days! Combining this request ({total_days} day(s)) "
+                    f"with your adjacent CL request(s) totals {chain['days']} consecutive days.",
+                    []
+                )
+
+        # Next check weekend-bridged CL continuity (Weekend Sandwich & > 5 days across weekend) -> Policy Alert
+        for seg in segments:
+            if seg["type"] == "CL":
+                if seg["e_slot"] < new_s_slot and (new_s_slot - seg["e_slot"] > 1) and are_slots_continuous(seg["e_slot"], new_s_slot):
+                    soft_alerts.append(
+                        f"Weekend Continuity Alert: You already have a {seg['status']} CL ({seg['dates']}) before a non-working weekend. "
+                        f"You cannot skip Saturday/Sunday to apply CL on Monday—please include Saturday to Sunday in your CL (unless there was a working day in between)."
+                    )
+                elif new_e_slot < seg["s_slot"] and (seg["s_slot"] - new_e_slot > 1) and are_slots_continuous(new_e_slot, seg["s_slot"]):
+                    soft_alerts.append(
+                        f"Weekend Continuity Alert: You already have a {seg['status']} CL ({seg['dates']}) after a non-working weekend. "
+                        f"You cannot skip Saturday/Sunday—please include Saturday to Sunday in your CL (unless there was a working day in between)."
+                    )
+
+        merged_cl = []
+        for seg in cl_segments:
+            if merged_cl and are_slots_continuous(merged_cl[-1]["e_slot"], seg["s_slot"]):
+                merged_cl[-1]["e_slot"] = seg["e_slot"]
+                merged_cl[-1]["days"] += seg["days"]
+                merged_cl[-1]["has_new"] = merged_cl[-1]["has_new"] or seg["is_new"]
+            else:
+                merged_cl.append(dict(seg, has_new=seg["is_new"]))
+
+        for chain in merged_cl:
+            if chain["has_new"] and chain["days"] > 5.0:
+                soft_alerts.append(
+                    f"Consecutive CL Across Weekend Alert: Combining this request ({total_days} day(s)) with your CL request(s) "
+                    f"across a non-working weekend totals {chain['days']} consecutive days (Max: 5 days)."
+                )
+
+    return None, soft_alerts
+
+
 def employee_dashboard(hide_title=False):
     if not hide_title:
         render_active_leaves_banner(show_type=False)
@@ -636,9 +866,29 @@ def employee_dashboard(hide_title=False):
     total_days = calculated_days
     final_days = -total_days if is_reversal else total_days
 
-    if not is_reversal and leave_type in ["CL", "AL", "UL"] and total_days > balances.get(leave_type, 0.0):
-        st.warning(
-            f"⚠️ Requested {leave_type} ({total_days} day(s)) exceeds your available {leave_type} balance ({balances.get(leave_type, 0.0)} day(s))."
+    df_requests = load_leave_requests()
+    hard_error_msg, soft_alerts = validate_leave_request_rules(
+        st.session_state.user_name,
+        leave_type,
+        start_date,
+        start_half,
+        end_date,
+        end_half,
+        total_days,
+        is_reversal,
+        balances,
+        df_requests
+    )
+    if hard_error_msg:
+        st.error(f"🚫 {hard_error_msg}")
+
+    force_apply = False
+    if soft_alerts:
+        alert_lines = "\n".join([f"- {a}" for a in soft_alerts])
+        st.warning(f"⚠️ **Leave Policy Alert:**\n{alert_lines}")
+        force_apply = st.checkbox(
+            "Force Apply anyway (e.g., special/regional working day such as Nepal 1st Sunday or working weekend)",
+            key="force_apply_leave_override"
         )
 
     st.write("---")
@@ -674,21 +924,21 @@ def employee_dashboard(hide_title=False):
         with st.spinner('Processing... Please wait and do not click again.'):
             if total_days <= 0:
                 st.error("Total days must be greater than 0.")
-            elif not is_reversal and leave_type in ["CL", "AL", "UL"] and total_days > balances.get(leave_type, 0.0):
-                st.error(
-                    f"Cannot apply beyond your available {leave_type} balance! Requested: {total_days} day(s), Available Balance: {balances.get(leave_type, 0.0)} day(s).")
-            elif not department.strip():
-                st.error("Department cannot be blank.")
-            elif selected_coadmin == "--- Select ---":
-                st.error("Please select a Co-Admin or choose 'Not-Applicable'.")
             elif start_date > end_date:
                 st.error("End Date must be after or equal to Start Date.")
             elif start_date != end_date and total_days < 1:
                 st.error(
                     "Total days must be at least 1 when your leave spans multiple days.")
+            elif hard_error_msg:
+                st.error(hard_error_msg)
+            elif soft_alerts and not force_apply:
+                st.error("Please adjust your dates/leave type to follow the policy alert above, or check 'Force Apply anyway' if a special working day applies.")
+            elif not department.strip():
+                st.error("Department cannot be blank.")
+            elif selected_coadmin == "--- Select ---":
+                st.error("Please select a Co-Admin or choose 'Not-Applicable'.")
             else:
                 try:
-                    df_requests = load_leave_requests()
                     new_request = pd.DataFrame([{
                         "ID": str(uuid.uuid4())[:8].upper(),
                         "Name": st.session_state.user_name,
